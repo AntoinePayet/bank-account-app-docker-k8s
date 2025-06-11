@@ -1,15 +1,18 @@
 package fr.socaf.bankaccountapp.customerservice;
 
+import fr.socaf.bankaccountapp.customerservice.config.GlobalConfig;
 import fr.socaf.bankaccountapp.customerservice.entities.Customer;
 import fr.socaf.bankaccountapp.customerservice.repository.CustomerRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
 import java.util.List;
 
 @SpringBootApplication
+@EnableConfigurationProperties(GlobalConfig.class)
 public class CustomerServiceApplication {
 
     public static void main(String[] args) {
