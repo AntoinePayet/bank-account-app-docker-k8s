@@ -1,1 +1,28 @@
-<p>customers works!</p>
+<div class="p3">
+  <div class="card">
+    <div class="card-body">
+      @if (customers) {
+        <table class="table">
+          <thead>
+          <tr>
+            <th>ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+          </tr>
+          </thead>
+          <tbody>
+            @for (c of customers; track c.id) {
+              <tr>
+                <td>{{ c.id }}</td>
+                <td>{{ c.firstName }}</td>
+                <td>{{ c.lastName }}</td>
+                <td>{{ c.email }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</div>

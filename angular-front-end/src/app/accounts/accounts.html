@@ -1,1 +1,36 @@
-<p>accounts works!</p>
+<div class="p3">
+  <div class="card">
+    <div class="card-body">
+      @if (accounts) {
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Account ID</th>
+            <th>Balance</th>
+            <th>Create At</th>
+            <th>Currency</th>
+            <th>Type</th>
+            <th>Customer Id</th>
+            <th>Customer Name</th>
+            <th>Customer Email</th>
+          </tr>
+          </thead>
+          <tbody>
+            @for (acc of accounts; track acc.id) {
+              <tr>
+                <td>{{ acc.accountId }}</td>
+                <td>{{ acc.balance }}</td>
+                <td>{{ acc.createAt }}</td>
+                <td>{{ acc.currency }}</td>
+                <td>{{ acc.type }}</td>
+                <td>{{ acc.customerId }}</td>
+                <td>{{ acc.customer.lastName }} {{ acc.customer.firstName }}</td>
+                <td>{{ acc.customer.email }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</div>
