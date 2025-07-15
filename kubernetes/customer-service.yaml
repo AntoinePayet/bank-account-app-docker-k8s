@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: enset-ebank-customer-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: enset-ebank-customer-service
+  template:
+    metadata:
+      labels:
+        app: enset-ebank-customer-service
+    spec:
+      containers:
+        - name: enset-ebank-customer-service
+          image: enset-ebank-customer-service
+          ports:
+            - containerPort: 8081
+              protocol: TCP
+          env:
+            - name: CONFIG_SERVICE_URL
+              value: "http://enset-ebank-config-service:9999"
+            - name: DISCOVERY_SERVICE_URL
+              value: "http://enset-ebank-discovery-service:8761/eureka"
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -f
+                - http://localhost:8081/actuator/health
+            failureThreshold: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9999
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: enset-ebank-customer-service
+spec:
+  selector:
+    app: enset-ebank-customer-service
+  ports:
+    - protocol: TCP
+      port: 8081 # Port du service exposé sur le cluster Kubernetes
+      targetPort: 8081 # Port sur lequel votre service d'authentification écoute dans le pod
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: enset-ebank-customer-service
+spec:
+  defaultBackend:
+    service:
+      name: enset-ebank-customer-service
+      port:
+        number: 8081

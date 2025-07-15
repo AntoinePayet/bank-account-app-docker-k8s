@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: angular-front-end-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bank-account.example
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: angular-front-end-service
+                port:
+                  number: 80

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: discovery-service
+  labels:
+    app: discovery-service
+spec:
+  selector:
+    app: discovery-service
+  ports:
+    - protocol: TCP
+      port: 8761 # Port du service expos� sur le cluster Kubernetes
+      targetPort: 8761 # Port sur lequel votre service d'authentification �coute dans le pod
+  type: ClusterIP

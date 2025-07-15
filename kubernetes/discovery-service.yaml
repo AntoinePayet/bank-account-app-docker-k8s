@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: discovery-service
+  template:
+    metadata:
+      labels:
+        app: discovery-service
+    spec:
+      containers:
+        - name: discovery-service
+          image: localhost:5000/discovery-service:1.2.0
+          ports:
+            - containerPort: 8761
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -f
+                - http://localhost:8761/actuator/health
+            failureThreshold: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: discovery-service
+  labels:
+    app: discovery-service
+spec:
+  selector:
+    app: discovery-service
+  ports:
+    - protocol: TCP
+      port: 8761 # Port du service expos? sur le cluster Kubernetes
+      targetPort: 8761 # Port sur lequel votre service d'authentification ?coute dans le pod
+  type: ClusterIP

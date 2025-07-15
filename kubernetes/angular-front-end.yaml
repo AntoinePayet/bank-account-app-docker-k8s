@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular-front-end-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: angular-front-end
+  template:
+    metadata:
+      labels:
+        app: angular-front-end
+    spec:
+      containers:
+        - name: angular-front-end
+          image: localhost:5000/angular-front-end
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: angular-front-end-service
+  labels:
+    app: angular-front-end
+spec:
+  selector:
+    app: angular-front-end
+  ports:
+    - protocol: TCP
+      port: 80 # Port du service expos? sur le cluster Kubernetes
+      targetPort: 80 # Port sur lequel votre service d'authentification ?coute dans le pod
+  type: LoadBalancer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: angular-front-end-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: bank-account.example
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: angular-front-end-service
+                port:
+                  number: 80
