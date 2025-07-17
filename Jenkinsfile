@@ -9,6 +9,10 @@ def microservices = [
 pipeline {
     agent any
 
+    environment {
+        PATH = "C:/Program Files/Docker/Docker/resources/bin;${env.PATH}"
+    }
+
     tools {
         maven 'maven-3.9.10'
         dockerTool 'MyDocker'
