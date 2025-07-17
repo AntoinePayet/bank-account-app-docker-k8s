@@ -92,9 +92,9 @@ def getServicePort(service) {
     def ports = [
         'account-service': '8082',
         'customer-service': '8081',
-        'config-service': '8888',
+        'config-service': '9999',
         'discovery-service': '8761',
-        'gateway-service': '8083'
+        'gateway-service': '8888'
     ]
     return ports[service]
 }
