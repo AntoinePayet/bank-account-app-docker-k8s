@@ -36,7 +36,7 @@ pipeline {
                 script {
                     env.CHANGES = []
                     for (service in microservices) {
-                        def changes = sh(
+                        def changes = bat(
                             script: "git diff --name-only HEAD^..HEAD ${service}/",
                             returnStdout: true
                         ).trim()
@@ -58,7 +58,7 @@ pipeline {
                 script {
                     for (service in env.CHANGES) {
                         dir(service) {
-                            sh 'mvn -B clean package -DskipTests'
+                            bat 'mvn -B clean package -DskipTests'
                         }
                     }
                 }
@@ -71,7 +71,7 @@ pipeline {
                     for (service in env.CHANGES) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            sh "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+                            bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
                         }
                     }
                 }
@@ -86,7 +86,7 @@ pipeline {
                         def containerName = service
                         def port = getServicePort(service)
 
-                        sh """
+                        bat """
                             docker -H tcp://localhost:2375 stop ${containerName} || true
                             docker -H tcp://localhost:2375 rm ${containerName} || true
                             docker -H tcp://localhost:2375 run --name ${containerName} -d -p ${port}:${port} ${imageTag}
