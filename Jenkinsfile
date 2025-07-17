@@ -69,37 +69,65 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build and Deploy with Docker Compose') {
             steps {
                 script {
-                def servicesList = env.CHANGES.split(',')
+                    def servicesList = env.CHANGES.split(',')
+
+                    // Construction des images Docker pour les services modifiés
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
                             bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+
+                            // Mise à jour du tag d'image dans docker-compose.yml
+                            bat """
+                                powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
+                            """
                         }
                     }
+
+                    // Arrêt des services existants
+                    bat 'docker-compose -H tcp://localhost:2375 down'
+
+                    // Démarrage des services avec docker-compose
+                    bat 'docker-compose -H tcp://localhost:2375 up -d'
                 }
             }
         }
 
-        stage('Deploy Services') {
-            steps {
-                script {
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        def imageTag = "${service}:${env.BUILD_NUMBER}"
-                        def containerName = service
-                        def port = getServicePort(service)
 
-                        bat """
-                            docker -H tcp://localhost:2375 stop ${containerName} || true
-                            docker -H tcp://localhost:2375 rm ${containerName} || true
-                            docker -H tcp://localhost:2375 run --name ${containerName} -d -p ${port}:${port} ${imageTag}
-                        """
-                    }
-                }
-            }
-        }
+//         stage('Build Docker Images') {
+//             steps {
+//                 script {
+//                 def servicesList = env.CHANGES.split(',')
+//                     for (service in servicesList) {
+//                         dir(service) {
+//                             def imageTag = "${service}:${env.BUILD_NUMBER}"
+//                             bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//
+//         stage('Deploy Services') {
+//             steps {
+//                 script {
+//                     def servicesList = env.CHANGES.split(',')
+//                     for (service in servicesList) {
+//                         def imageTag = "${service}:${env.BUILD_NUMBER}"
+//                         def containerName = service
+//                         def port = getServicePort(service)
+//
+//                         bat """
+//                             docker -H tcp://localhost:2375 stop ${containerName} || true
+//                             docker -H tcp://localhost:2375 rm ${containerName} || true
+//                             docker -H tcp://localhost:2375 run --name ${containerName} -d -p ${port}:${port} ${imageTag}
+//                         """
+//                     }
+//                 }
+//             }
+//         }
     }
 }
