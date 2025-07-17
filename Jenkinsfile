@@ -76,8 +76,6 @@ pipeline {
                         def port = getServicePort(service)
 
                         sh """
-                            docker -H tcp://localhost:2375 stop ${containerName} || true
-                            docker -H tcp://localhost:2375 rm ${containerName} || true
                             docker -H tcp://localhost:2375 run --name ${containerName} -d -p ${port}:${port} ${imageTag}
                         """
                     }
