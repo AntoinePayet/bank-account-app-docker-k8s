@@ -34,7 +34,7 @@ pipeline {
         stage('Detect Changes') {
             steps {
                 script {
-                    env.CHANGES = []
+                    def changedServices = []
                     for (service in microservices) {
                         def changes = bat(
                             script: "git diff --name-only HEAD^..HEAD ${service}/",
@@ -42,13 +42,16 @@ pipeline {
                         ).trim()
 
                         if (changes) {
-                            env.CHANGES.add(service)
+                            changedServices.add(service)
                         }
                     }
 
-                    if (env.CHANGES.isEmpty()) {
-                        env.CHANGES = microservices // Si aucun changement spécifique, construire tous les services
+                    if (changedServices.isEmpty()) {
+                        changedServices = microservices // Si aucun changement spécifique, construire tous les services
                     }
+
+                    // Stocker la liste comme une chaîne séparée par des virgules dans env.CHANGES
+                    env.CHANGES = changedServices.join(',')
                 }
             }
         }
@@ -56,7 +59,8 @@ pipeline {
         stage('Build Projects') {
             steps {
                 script {
-                    for (service in env.CHANGES) {
+                    def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
                         dir(service) {
                             bat 'mvn -B clean package -DskipTests'
                         }
@@ -68,7 +72,8 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    for (service in env.CHANGES) {
+                def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
                             bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
@@ -81,7 +86,8 @@ pipeline {
         stage('Deploy Services') {
             steps {
                 script {
-                    for (service in env.CHANGES) {
+                    def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         def containerName = service
                         def port = getServicePort(service)
