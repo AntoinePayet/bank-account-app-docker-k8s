@@ -24,10 +24,20 @@ pipeline {
         maven 'maven-3.9.10'
     }
 
+    DOCKER_REGISTRY = 'localhost:5000'
+
     stages {
         stage('Clone Repository') {
             steps {
                 git 'https://github.com/AntoinePayet/bank-account-app-docker-k8s.git'
+            }
+        }
+
+        stage('Configuration Minikube') {
+            steps {
+                script {
+                    bat 'minikube tunnel'
+                }
             }
         }
 
@@ -69,65 +79,35 @@ pipeline {
             }
         }
 
-        stage('Build and Deploy with Docker Compose') {
+        stage('Build et Push Images Docker') {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
-
-                    // Construction des images Docker pour les services modifiés
                     for (service in servicesList) {
                         dir(service) {
-                            def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
-
-                            // Mise à jour du tag d'image dans docker-compose.yml
-                            bat """
-                                powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
-                            """
+                            def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
+                            // Configuration de l'environnement Docker pour Minikube
+                            bat 'minikube -p minikube docker-env --shell powershell | Invoke-Expression'
+                            bat "docker build -t ${imageTag} ."
+                            bat "docker push ${imageTag}"
                         }
                     }
-
-                    // Arrêt des services existants
-                    bat 'docker-compose -H tcp://localhost:2375 down'
-
-                    // Démarrage des services avec docker-compose
-                    bat 'docker-compose -H tcp://localhost:2375 up -d'
                 }
             }
         }
 
-
-//         stage('Build Docker Images') {
-//             steps {
-//                 script {
-//                 def servicesList = env.CHANGES.split(',')
-//                     for (service in servicesList) {
-//                         dir(service) {
-//                             def imageTag = "${service}:${env.BUILD_NUMBER}"
-//                             bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//
-//         stage('Deploy Services') {
-//             steps {
-//                 script {
-//                     def servicesList = env.CHANGES.split(',')
-//                     for (service in servicesList) {
-//                         def imageTag = "${service}:${env.BUILD_NUMBER}"
-//                         def containerName = service
-//                         def port = getServicePort(service)
-//
-//                         bat """
-//                             docker -H tcp://localhost:2375 stop ${containerName} || true
-//                             docker -H tcp://localhost:2375 rm ${containerName} || true
-//                             docker -H tcp://localhost:2375 run --name ${containerName} -d -p ${port}:${port} ${imageTag}
-//                         """
-//                     }
-//                 }
-//             }
-//         }
+        stage('Déploiement Helm') {
+            steps {
+                script {
+                    def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
+                        // Mise à jour ou installation des charts Helm
+                        dir(service) {
+                            bat "helm upgrade --install ${service} .\\${service}\\ ."
+                        }
+                    }
+                }
+            }
+        }
     }
 }
