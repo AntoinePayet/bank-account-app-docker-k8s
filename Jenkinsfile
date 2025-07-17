@@ -11,7 +11,7 @@ pipeline {
 
     tools {
         maven 'maven-3.9.10'
-        docker 'MyDocker'
+        dockerTool 'MyDocker'
     }
 
     stages {
