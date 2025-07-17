@@ -11,34 +11,49 @@ pipeline {
 
     tools {
         maven 'maven-3.9.10'
-        dockerTool 'MyDocker'
+    }
+
+    environment {
+        DOCKER_HOME = tool name: 'MyDocker'
+        PATH = "${DOCKER_HOME}:${env.PATH}"
     }
 
     stages {
+        stage('Vérification Docker') {
+            steps {
+                script {
+                    try {
+                        sh 'docker --version'
+                    } catch (Exception e) {
+                        error "Docker n'est pas correctement installé ou configuré: ${e.message}"
+                    }
+                }
+            }
+        }
+
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/AntoinePayet/bank-account-app-docker-k8s.git'
+                checkout scm
             }
         }
 
         stage('Detect Changes') {
             steps {
                 script {
-                    env.CHANGES = []
+                    def changedServices = []
                     for (service in microservices) {
                         def changes = sh(
-                            script: "git diff --name-only HEAD^..HEAD ${service}/",
+                            script: "git diff --name-only HEAD^..HEAD ${service}/ || true",
                             returnStdout: true
                         ).trim()
 
                         if (changes) {
-                            env.CHANGES.add(service)
+                            changedServices.add(service)
                         }
                     }
 
-                    if (env.CHANGES.isEmpty()) {
-                        env.CHANGES = microservices // Si aucun changement spécifique, construire tous les services
-                    }
+                    env.CHANGED_SERVICES = changedServices.isEmpty() ? microservices.join(',') : changedServices.join(',')
+                    echo "Services à construire: ${env.CHANGED_SERVICES}"
                 }
             }
         }
@@ -46,9 +61,10 @@ pipeline {
         stage('Build Projects') {
             steps {
                 script {
-                    for (service in env.CHANGES) {
+                    def servicesToBuild = env.CHANGED_SERVICES.split(',')
+                    for (service in servicesToBuild) {
                         dir(service) {
-                            sh 'mvn -B clean package -DskipTests'
+                            bat "mvn -B clean package -DskipTests"
                         }
                     }
                 }
@@ -58,10 +74,11 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    for (service in env.CHANGES) {
+                    def servicesToBuild = env.CHANGED_SERVICES.split(',')
+                    for (service in servicesToBuild) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            sh "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+                            bat "docker build -t ${imageTag} ."
                         }
                     }
                 }
@@ -71,19 +88,32 @@ pipeline {
         stage('Deploy Services') {
             steps {
                 script {
-                    for (service in env.CHANGES) {
+                    def servicesToDeploy = env.CHANGED_SERVICES.split(',')
+                    for (service in servicesToDeploy) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         def containerName = service
                         def port = getServicePort(service)
 
-                        sh """
-                            docker -H tcp://localhost:2375 stop ${containerName} || true
-                            docker -H tcp://localhost:2375 rm ${containerName} || true
-                            docker -H tcp://localhost:2375 run --name ${containerName} -d -p ${port}:${port} ${imageTag}
+                        bat """
+                            docker stop ${containerName} 2>nul || echo "Container not running"
+                            docker rm ${containerName} 2>nul || echo "Container not found"
+                            docker run --name ${containerName} -d -p ${port}:${port} ${imageTag}
                         """
                     }
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline exécuté avec succès!'
+        }
+        failure {
+            echo 'Le pipeline a échoué. Vérifiez les logs pour plus de détails.'
         }
     }
 }
