@@ -1,0 +1,27 @@
+node {
+    def mvnHome = tool 'maven-3.9.10'
+    def dockerImage
+    def dockerImageTag = "customer-service${env.BUILD_NUMBER}"
+
+    stage('Clone Repo') {
+      git 'https://github.com/AntoinePayet/bank-account-app-docker-k8s.git'
+    }
+
+    stage('Build Project') {
+      sh "'${mvnHome}/bin/mvn' -B -DskipTests clean package"
+    }
+
+    stage('Initialize Docker'){
+	  def dockerHome = tool 'MyDocker'
+	  env.PATH = "${dockerHome}/bin:${env.PATH}"
+    }
+
+    stage('Build Docker Image') {
+      sh "docker -H tcp://192.168.8.100:2375 build -t customer-service:${env.BUILD_NUMBER} ."
+    }
+
+    stage('Deploy Docker Image'){
+      	echo "Docker Image Tag Name: ${dockerImageTag}"
+	sh "docker -H tcp://localhost:2375 run --name customer-service -d -p 8081:8081 customer-service:${env.BUILD_NUMBER}"
+    }
+}
