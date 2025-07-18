@@ -81,7 +81,7 @@ pipeline {
                         dir(service) {
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
                             // Configuration de l'environnement Docker pour Minikube
-                            bat 'minikube -p minikube docker-env --shell powershell | Invoke-Expression'
+                            bat '@FOR /f "tokens=*" %i IN (\'minikube -p minikube docker-env\') DO @%i'
                             bat "docker build -t ${imageTag} ."
                             bat "docker push ${imageTag}"
                         }
