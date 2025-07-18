@@ -52,15 +52,28 @@ pipeline {
                         def dockerEnvSetup = powershell(
                             script: '''
                                 $dockerEnv = minikube -p minikube docker-env --shell powershell
+                                Write-Host "Configuration Docker trouvée:"
+                                Write-Host $dockerEnv
+
                                 if ($dockerEnv) {
-                                    $dockerEnv | Invoke-Expression
+                                    $dockerEnv | ForEach-Object {
+                                        if ($_ -match '^(\$env:.*?) = "(.*?)"$') {
+                                            $varName = $matches[1].Replace('$env:', '')
+                                            $varValue = $matches[2]
+                                            [Environment]::SetEnvironmentVariable($varName, $varValue, [System.EnvironmentVariableTarget]::Process)
+                                            Write-Host "Configuration de $varName = $varValue"
+                                        }
+                                    }
                                     Write-Output "true"
                                 } else {
+                                    Write-Host "Aucune configuration Docker trouvée"
                                     Write-Output "false"
                                 }
                             ''',
                             returnStdout: true
                         ).trim()
+
+                        echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
 
                         if (dockerEnvSetup == "true") {
                             env.DOCKER_ENV_CONFIGURED = 'true'
@@ -71,11 +84,14 @@ pipeline {
 
                         // Vérifier les variables d'environnement
                         powershell '''
+                            Write-Host "=== Vérification de l'environnement Docker ==="
                             Write-Host "Docker Host: $env:DOCKER_HOST"
                             Write-Host "Docker Cert Path: $env:DOCKER_CERT_PATH"
                             Write-Host "Docker TLS Verify: $env:DOCKER_TLS_VERIFY"
                             Write-Host "Minikube Active Dockerd: $env:MINIKUBE_ACTIVE_DOCKERD"
                             Write-Host "Docker Registry: $env:DOCKER_REGISTRY"
+                            Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
+                            Write-Host "========================================"
                         '''
                     } catch (Exception e) {
                         env.DOCKER_ENV_CONFIGURED = 'false'
@@ -127,15 +143,21 @@ pipeline {
 
         stage('Build & Push Images Docker') {
             when {
-                  expression { env.DOCKER_ENV_CONFIGURED == 'true' }
+                expression {
+                    echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
+                    return env.DOCKER_ENV_CONFIGURED == 'true'
+                }
             }
             steps {
                 script {
+                    echo "Début de la construction des images Docker"
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
+                            echo "Construction de l'image: ${imageTag}"
                             powershell "docker build -t ${imageTag} ."
+                            echo "Push de l'image: ${imageTag}"
                             powershell "docker push ${imageTag}"
                         }
                     }
@@ -145,13 +167,18 @@ pipeline {
 
         stage('HELM Deployment') {
             when {
-                expression { env.DOCKER_ENV_CONFIGURED == 'true' }
+                expression {
+                    echo "Vérification de DOCKER_ENV_CONFIGURED pour Helm: ${env.DOCKER_ENV_CONFIGURED}"
+                    return env.DOCKER_ENV_CONFIGURED == 'true'
+                }
             }
             steps {
                 script {
+                    echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
+                            echo "Déploiement de ${service}"
                             powershell "helm upgrade --install ${service} .\\${service}\\ ."
                         }
                     }
@@ -166,6 +193,9 @@ pipeline {
                     echo "Le pipeline a échoué en raison d'une mauvaise configuration de l'environnement Docker"
                 }
             }
+        }
+        always {
+            echo "État final de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
         }
     }
 }
