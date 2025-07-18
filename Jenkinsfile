@@ -76,12 +76,18 @@ pipeline {
         stage('Build et Push Images Docker') {
             steps {
                 script {
-                    powershell 'minikube -p minikube docker-env --shell powershell | Invoke-Expression'
+                    powershell '''
+                        $dockerEnv = minikube -p minikube docker-env --shell powershell
+                        if ($dockerEnv) {
+                            $dockerEnv | Invoke-Expression
+                        } else {
+                            exit 1
+                        }
+                    '''
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                            // Configuration de l'environnement Docker pour Minikube
                             powershell "docker build -t ${imageTag} ."
                             powershell "docker push ${imageTag}"
                         }
