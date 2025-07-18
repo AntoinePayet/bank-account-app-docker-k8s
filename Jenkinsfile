@@ -40,7 +40,7 @@ pipeline {
             }
         }
 
-        stage('Vérification de l\'environnement Docker') {
+        stage('Checking Docker environment') {
             steps {
                 script {
                     try {
@@ -131,7 +131,7 @@ pipeline {
             }
         }
 
-        stage('Build et Push Images Docker') {
+        stage('Build & Push Images Docker') {
             when {
                expression { env.DOCKER_ENV_CONFIGURED == 'true' }
             }
@@ -149,7 +149,7 @@ pipeline {
             }
         }
 
-        stage('Déploiement Helm') {
+        stage('HELM Deployment') {
             when {
                expression { env.DOCKER_ENV_CONFIGURED == 'true' }
             }
