@@ -76,6 +76,7 @@ pipeline {
         stage('Build et Push Images Docker') {
             steps {
                 script {
+                    powershell 'minikube -p minikube docker-env --shell powershell | Invoke-Expression'
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
