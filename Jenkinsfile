@@ -51,22 +51,11 @@ pipeline {
                         // Configurer l'environnement Docker pour Minikube
                         def dockerEnvSetup = powershell(
                             script: '''
-                                $dockerEnv = minikube -p minikube docker-env --shell powershell
-                                Write-Host "Configuration Docker trouvée:"
-                                Write-Host $dockerEnv
-
-                                if ($dockerEnv) {
-                                    $dockerEnv | ForEach-Object {
-                                        if ($_ -match '^(\$env:.*?) = "(.*?)"$') {
-                                            $varName = $matches[1].Replace('$env:', '')
-                                            $varValue = $matches[2]
-                                            [Environment]::SetEnvironmentVariable($varName, $varValue, [System.EnvironmentVariableTarget]::Process)
-                                            Write-Host "Configuration de $varName = $varValue"
-                                        }
-                                    }
+                                Write-Host "Configuration de l'environnement Docker..."
+                                minikube -p minikube docker-env --shell powershell | Invoke-Expression
+                                if ($?) {
                                     Write-Output "true"
                                 } else {
-                                    Write-Host "Aucune configuration Docker trouvée"
                                     Write-Output "false"
                                 }
                             ''',
