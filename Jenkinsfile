@@ -65,7 +65,7 @@ pipeline {
 
                     if (dockerEnvSetup == "true") {
                         env.DOCKER_ENV_CONFIGURED = 'true'
-                        powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
+                        powershell 'Write-Host "Docker Env Configured: true"'
                         echo "Configuration Docker réussie"
                     } else {
                         error "Échec de la configuration de l'environnement Docker"
