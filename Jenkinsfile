@@ -33,14 +33,6 @@ pipeline {
             }
         }
 
-        stage('Configuration Minikube') {
-            steps {
-                script {
-                    bat 'minikube tunnel'
-                }
-            }
-        }
-
         stage('Detect Changes') {
             steps {
                 script {
