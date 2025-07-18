@@ -77,6 +77,7 @@ pipeline {
 
                         if (dockerEnvSetup == "true") {
                             env.DOCKER_ENV_CONFIGURED = 'true'
+                            powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
                             echo "Configuration Docker réussie"
                         } else {
                             error "Échec de la configuration de l'environnement Docker"
@@ -119,7 +120,8 @@ pipeline {
                     }
 
                     if (changedServices.isEmpty()) {
-                        changedServices = microservices // Si aucun changement spécifique, construire tous les services
+                        // Si aucun changement spécifique, construire tous les services
+                        changedServices = microservices
                     }
 
                     // Stocker la liste comme une chaîne séparée par des virgules dans env.CHANGES
