@@ -40,7 +40,7 @@ pipeline {
                 script {
                     def changedServices = []
                     for (service in microservices) {
-                        def changes = bat(
+                        def changes = powershell(
                             script: "git diff --name-only HEAD^..HEAD ${service}/",
                             returnStdout: true
                         ).trim()
@@ -66,7 +66,7 @@ pipeline {
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
-                            bat 'mvn -B clean package -DskipTests'
+                            powershell 'mvn -B clean package -DskipTests'
                         }
                     }
                 }
@@ -82,8 +82,8 @@ pipeline {
                         dir(service) {
                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
                             // Configuration de l'environnement Docker pour Minikube
-                            bat "docker build -t ${imageTag} ."
-                            bat "docker push ${imageTag}"
+                            powershell "docker build -t ${imageTag} ."
+                            powershell "docker push ${imageTag}"
                         }
                     }
                 }
@@ -97,7 +97,7 @@ pipeline {
                     for (service in servicesList) {
                         // Mise à jour ou installation des charts Helm
                         dir(service) {
-                            bat "helm upgrade --install ${service} .\\${service}\\ ."
+                            powershell "helm upgrade --install ${service} .\\${service}\\ ."
                         }
                     }
                 }
