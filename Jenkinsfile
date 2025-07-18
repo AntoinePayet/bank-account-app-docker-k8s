@@ -37,7 +37,9 @@ pipeline {
 
         stage('Set up registry in K8s') {
             steps {
-                bat 'powershell -Command "minikube -p minikube docker-env --shell powershell | Invoke-Expression"'
+                script {
+                    bat 'powershell -Command "minikube -p minikube docker-env --shell powershell | Invoke-Expression"'
+                }
             }
         }
 
