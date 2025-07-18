@@ -24,7 +24,9 @@ pipeline {
         maven 'maven-3.9.10'
     }
 
-    DOCKER_REGISTRY = 'localhost:5000'
+    environment {
+        DOCKER_REGISTRY = 'localhost:5000'
+    }
 
     stages {
         stage('Clone Repository') {
