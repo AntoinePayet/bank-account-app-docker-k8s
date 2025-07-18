@@ -25,7 +25,7 @@ pipeline {
     }
 
     environment {
-        DOCKER_REGISTRY = 'localhost:5000'
+        DOCKER_REGISTRY = '192.168.49.2:5000'
     }
 
     stages {
@@ -77,17 +77,19 @@ pipeline {
             steps {
                 script {
                     powershell '''
+                        # Vérifier si Minikube est en cours d'exécution
                         $minikubeStatus = minikube status
                         if ($LASTEXITCODE -ne 0) {
                             Write-Error "Minikube n'est pas en cours d'exécution"
                             exit 1
                         }
 
+                        # Configurer l'environnement Docker pour Minikube
                         $dockerEnv = minikube -p minikube docker-env --shell powershell
                         if ($dockerEnv) {
                             $dockerEnv | Invoke-Expression
                         } else {
-                            exit 1
+                            throw "Erreur lors de la configuration de l'environnement Docker"
                         }
                     '''
                     def servicesList = env.CHANGES.split(',')
