@@ -35,19 +35,6 @@ pipeline {
             }
         }
 
-        stage('Vérification Minikube') {
-            steps {
-                script {
-                    powershell '''
-                        if (-not (minikube status)) {
-                            Write-Error "Minikube n'est pas en cours d'exécution"
-                            exit 1
-                        }
-                    '''
-                }
-            }
-        }
-
         stage('Set up registry in K8s') {
             steps {
                 script {
