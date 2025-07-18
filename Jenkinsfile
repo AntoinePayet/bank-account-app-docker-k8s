@@ -126,16 +126,17 @@ pipeline {
         }
 
         stage('Build & Push Images Docker') {
-            if (expression { env.DOCKER_ENV_CONFIGURED == 'true' }) {
-                steps {
-                    script {
-                        def servicesList = env.CHANGES.split(',')
-                        for (service in servicesList) {
-                            dir(service) {
-                                def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                                powershell "docker build -t ${imageTag} ."
-                                powershell "docker push ${imageTag}"
-                            }
+            when {
+                  expression { env.DOCKER_ENV_CONFIGURED == 'true' }
+            }
+            steps {
+                script {
+                    def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
+                        dir(service) {
+                            def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
+                            powershell "docker build -t ${imageTag} ."
+                            powershell "docker push ${imageTag}"
                         }
                     }
                 }
@@ -143,14 +144,15 @@ pipeline {
         }
 
         stage('HELM Deployment') {
-            if (expression { env.DOCKER_ENV_CONFIGURED == 'true' }){
-                steps {
-                    script {
-                        def servicesList = env.CHANGES.split(',')
-                        for (service in servicesList) {
-                            dir(service) {
-                                powershell "helm upgrade --install ${service} .\\${service}\\ ."
-                            }
+            when {
+                expression { env.DOCKER_ENV_CONFIGURED == 'true' }
+            }
+            steps {
+                script {
+                    def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
+                        dir(service) {
+                            powershell "helm upgrade --install ${service} .\\${service}\\ ."
                         }
                     }
                 }
