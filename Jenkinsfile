@@ -32,12 +32,10 @@ pipeline {
         stage('TEST MINIKUBE') {
             steps {
                 script {
-                    powershell '''
-                        minikube start
-                        minikube ip
-                        minikube dashboard
-                        minikube stop
-                    '''
+                    powershell "minikube start"
+                    powershell "minikube ip"
+                    powershell "minikube dashboard"
+                    powershell "minikube stop"
                 }
             }
         }
