@@ -77,6 +77,12 @@ pipeline {
             steps {
                 script {
                     powershell '''
+                        $minikubeStatus = minikube status
+                        if ($LASTEXITCODE -ne 0) {
+                            Write-Error "Minikube n'est pas en cours d'exécution"
+                            exit 1
+                        }
+
                         $dockerEnv = minikube -p minikube docker-env --shell powershell
                         if ($dockerEnv) {
                             $dockerEnv | Invoke-Expression
