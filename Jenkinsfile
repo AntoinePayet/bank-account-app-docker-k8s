@@ -30,7 +30,7 @@ pipeline {
         DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
         MINIKUBE_ACTIVE_DOCKERD = "minikube"
         DOCKER_REGISTRY = 'localhost:5000'
-        DOCKER_ENV_CONFIGURED = false
+        DOCKER_ENV_CONFIGURED = true
     }
 
     stages {
