@@ -58,7 +58,7 @@ pipeline {
                         def dockerEnvSetup = powershell(
                             script: '''
                                 $dockerEnv = minikube -p minikube docker-env --shell powershell
-                                if ($?) {
+                                if ($dockerEnv) {
                                     $dockerEnv | Invoke-Expression
                                     Write-Output "true"
                                 } else {
