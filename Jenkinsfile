@@ -34,12 +34,6 @@ pipeline {
     }
 
     stages {
-        stage('Clone Repository') {
-            steps {
-                git 'https://github.com/AntoinePayet/bank-account-app-docker-k8s.git'
-            }
-        }
-
         stage('Checking Docker environment') {
             steps {
                 script {
@@ -132,17 +126,16 @@ pipeline {
         }
 
         stage('Build & Push Images Docker') {
-            when {
-               expression { env.DOCKER_ENV_CONFIGURED == 'true' }
-            }
-            steps {
-                script {
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                            powershell "docker build -t ${imageTag} ."
-                            powershell "docker push ${imageTag}"
+            if (expression { env.DOCKER_ENV_CONFIGURED == 'true' }) {
+                steps {
+                    script {
+                        def servicesList = env.CHANGES.split(',')
+                        for (service in servicesList) {
+                            dir(service) {
+                                def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
+                                powershell "docker build -t ${imageTag} ."
+                                powershell "docker push ${imageTag}"
+                            }
                         }
                     }
                 }
@@ -150,15 +143,14 @@ pipeline {
         }
 
         stage('HELM Deployment') {
-            when {
-               expression { env.DOCKER_ENV_CONFIGURED == 'true' }
-            }
-            steps {
-                script {
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            powershell "helm upgrade --install ${service} .\\${service}\\ ."
+            if (expression { env.DOCKER_ENV_CONFIGURED == 'true' }){
+                steps {
+                    script {
+                        def servicesList = env.CHANGES.split(',')
+                        for (service in servicesList) {
+                            dir(service) {
+                                powershell "helm upgrade --install ${service} .\\${service}\\ ."
+                            }
                         }
                     }
                 }
