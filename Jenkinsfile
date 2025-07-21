@@ -177,7 +177,7 @@ pipeline {
                     for (service in servicesList) {
                         dir(service) {
                             echo "Déploiement de ${service}"
-                            powershell "helm upgrade --install ${service} .\\${service}\\ ."
+                            powershell "helm --install ${service} .\\${service}\\ ."
                         }
                     }
                 }
