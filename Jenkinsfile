@@ -24,78 +24,19 @@ pipeline {
         maven 'maven-3.9.10'
     }
 
-    environment {
-        DOCKER_TLS_VERIFY = "1"
-        DOCKER_HOST = "tcp://127.0.0.1:51134"
-        DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
-        MINIKUBE_ACTIVE_DOCKERD = "minikube"
-        DOCKER_REGISTRY = 'localhost:5000'
-    }
-
     stages {
-        stage('Checking Docker environment') {
+        stage('Clone Repository') {
             steps {
-                script {
-                    env.DOCKER_ENV_CONFIGURED = "false"
-
-                    // Vérifier si Minikube est en cours d'exécution
-                    def minikubeStatus = powershell(
-                        script: 'minikube status',
-                        returnStatus: true
-                    )
-
-                    if (minikubeStatus != 0) {
-                        error "Minikube n'est pas en cours d'exécution"
-                    }
-
-                    // Configurer l'environnement Docker pour Minikube
-                    def dockerEnvSetup = powershell(
-                        script: '''
-                            Write-Host "Configuration de l'environnement Docker..."
-                            minikube -p minikube docker-env --shell powershell | Invoke-Expression
-                            if ($?) {
-                                Write-Output "true"
-                            } else {
-                                Write-Output "false"
-                            }
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
-
-                    if (dockerEnvSetup == "true") {
-                        env.DOCKER_ENV_CONFIGURED = true
-                        powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
-                        echo "Configuration Docker réussie"
-                    } else {
-                        error "Échec de la configuration de l'environnement Docker"
-                    }
-
-                    // Vérifier les variables d'environnement
-                    powershell '''
-                        Write-Host "=== Vérification de l'environnement Docker ==="
-                        Write-Host "Docker Host: $env:DOCKER_HOST"
-                        Write-Host "Docker Cert Path: $env:DOCKER_CERT_PATH"
-                        Write-Host "Docker TLS Verify: $env:DOCKER_TLS_VERIFY"
-                        Write-Host "Minikube Active Dockerd: $env:MINIKUBE_ACTIVE_DOCKERD"
-                        Write-Host "Docker Registry: $env:DOCKER_REGISTRY"
-                        Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
-                        Write-Host "========================================"
-                    '''
-                    echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
-                }
+                git 'https://github.com/AntoinePayet/bank-account-app-docker-k8s.git'
             }
         }
-
-
 
         stage('Detect Changes') {
             steps {
                 script {
                     def changedServices = []
                     for (service in microservices) {
-                        def changes = powershell(
+                        def changes = bat(
                             script: "git diff --name-only HEAD^..HEAD ${service}/",
                             returnStdout: true
                         ).trim()
@@ -106,8 +47,7 @@ pipeline {
                     }
 
                     if (changedServices.isEmpty()) {
-                        // Si aucun changement spécifique, construire tous les services
-                        changedServices = microservices
+                        changedServices = microservices // Si aucun changement spécifique, construire tous les services
                     }
 
                     // Stocker la liste comme une chaîne séparée par des virgules dans env.CHANGES
@@ -122,78 +62,36 @@ pipeline {
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
-                            powershell 'mvn -B clean package -DskipTests'
+                            bat 'mvn -B clean package -DskipTests'
                         }
                     }
                 }
             }
         }
 
-        stage('Build & Push Images Docker') {
-            when {
-                expression {
-                    echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
-                    return env.DOCKER_ENV_CONFIGURED == 'true'
-                }
-            }
+        stage('Build and Deploy with Docker Compose') {
             steps {
                 script {
-                    echo "Début de la construction des images Docker"
                     def servicesList = env.CHANGES.split(',')
+
+                    // Construction des images Docker pour les services modifiés
                     for (service in servicesList) {
                         dir(service) {
-                            def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                            echo "Construction de l'image: ${imageTag}"
-                            powershell "docker build -t ${imageTag} ."
-                            echo "Push de l'image: ${imageTag}"
-                            powershell "docker push ${imageTag}"
+                            def imageTag = "${service}:${env.BUILD_NUMBER}"
+                            bat "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+
+                            // Mise à jour du tag d'image dans docker-compose.yml
+                            bat """
+                                powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
+                            """
                         }
                     }
-                }
-            }
-        }
 
-        stage('Helm Deployment') {
-            when {
-                expression {
-                    echo "Vérification de DOCKER_ENV_CONFIGURED pour Helm: ${env.DOCKER_ENV_CONFIGURED}"
-                    return env.DOCKER_ENV_CONFIGURED == 'true'
-                }
-            }
-            steps {
-                script {
-                    echo "Installation de Helm"
-                    powershell '''
-                        Invoke-WebRequest -Uri "https://get.helm.sh/helm-v3.8.0-windows-amd64.zip" -OutFile "helm-v3.8.0-windows-amd64.zip"
-                        Expand-Archive -Path "helm-v3.8.0-windows-amd64.zip" -DestinationPath "C:\\Users\\apayet\\IdeaProjects\\helm"
-                        $env:PATH += ";C:\\Users\\apayet\\IdeaProjects\\helm\\windows-amd64"
-                    '''
+                    // Arrêt des services existants
+                    bat 'docker-compose -H tcp://localhost:2375 down'
 
-                    echo "Vérifier que Helm est accessible"
-                    powershell "helm version"
-
-                    echo "Début du déploiement Helm"
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            echo "Déploiement de ${service}"
-                            powershell "helm --install ${service} .\\${service}\\ ."
-                        }
-                    }
+                    // Démarrage des services avec docker-compose
+                    bat 'docker-compose -H tcp://localhost:2375 up -d'
                 }
             }
         }
-    }
-    post {
-        failure {
-            script {
-                if (env.DOCKER_ENV_CONFIGURED == 'false') {
-                    echo "Le pipeline a échoué en raison d'une mauvaise configuration de l'environnement Docker"
-                }
-            }
-        }
-        always {
-            echo "État final de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
-        }
-    }
-}
