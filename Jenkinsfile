@@ -163,17 +163,11 @@ pipeline {
             steps {
                 script {
                     echo "Installation de Helm"
-//                     powershell '''
-                        echo "Vérification de l'installation de Helm"
-                        def helmInstalled = powershell(
-                            script: 'helm version',
-                            returnStatus: true
-                        )
-
-                        if (helmInstalled != 0) {
-                            error "Helm n'est pas installé ou n'est pas accessible"
-                        }
-//                     '''
+                    powershell '''
+                        Invoke-WebRequest -Uri "https://get.helm.sh/helm-v3.8.0-windows-amd64.zip" -OutFile "helm-v3.8.0-windows-amd64.zip"
+                        Expand-Archive -Path "helm-v3.8.0-windows-amd64.zip" -DestinationPath "."
+                        Move-Item -Path "windows-amd64\\helm.exe" -Destination "C:\\Users\\apayet\\IdeaProjects\\helm\\helm.exe"
+                    '''
 
                     echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
