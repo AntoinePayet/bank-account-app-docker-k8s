@@ -167,10 +167,10 @@ pipeline {
                         Invoke-WebRequest -Uri "https://get.helm.sh/helm-v3.8.0-windows-amd64.zip" -OutFile "helm-v3.8.0-windows-amd64.zip"
                         Expand-Archive -Path "helm-v3.8.0-windows-amd64.zip" -DestinationPath "C:\\Users\\apayet\\IdeaProjects\\helm"
                         $env:PATH += ";C:\\Users\\apayet\\IdeaProjects\\helm\\windows-amd64"
-
-                        # Vérifier que Helm est accessible
-                        helm version
                     '''
+
+                    echo "Vérifier que Helm est accessible"
+                    powershell "helm version"
 
                     echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
