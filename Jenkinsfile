@@ -164,8 +164,8 @@ pipeline {
                 script {
                     echo "Installation de Helm"
                     powershell '''
-                        $helmZipPath = "C:\Users\apayet\Downloads\helm-v3.18.4-windows-amd64.zip"
-                        $helmExtractPath = "C:\Users\apayet\IdeaProjects\helm"
+                        $helmZipPath = "C:\\Users\\apayet\\Downloads\\helm-v3.18.4-windows-amd64.zip"
+                        $helmExtractPath = "C:\\Users\\apayet\\IdeaProjects\\helm"
 
                         # Créer le répertoire de destination s'il n'existe pas
                         if (-not (Test-Path $helmExtractPath)) {
@@ -176,7 +176,7 @@ pipeline {
                         Expand-Archive -Path $helmZipPath -DestinationPath $helmExtractPath -Force
 
                         # Ajouter Helm au PATH pour cette session
-                        $env:Path += ";$helmExtractPath\windows-amd64"
+                        $env:Path += ";$helmExtractPath\\windows-amd64"
                     '''
 
                     echo "Début du déploiement Helm"
