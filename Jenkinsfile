@@ -163,7 +163,7 @@ pipeline {
             steps {
                 script {
                     echo "Installation de Helm"
-                    powershell '''
+//                     powershell '''
                         echo "Vérification de l'installation de Helm"
                         def helmInstalled = powershell(
                             script: 'helm version',
@@ -173,7 +173,7 @@ pipeline {
                         if (helmInstalled != 0) {
                             error "Helm n'est pas installé ou n'est pas accessible"
                         }
-                    '''
+//                     '''
 
                     echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
