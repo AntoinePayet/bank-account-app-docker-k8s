@@ -37,7 +37,7 @@ pipeline {
         stage('Checking Docker environment') {
             steps {
                 script {
-                    env.DOCKER_ENV_CONFIGURED = "false"
+                    env.DOCKER_ENV_CONFIGURED = "true"
 
                     // Vérifier si Minikube est en cours d'exécution
                     def minikubeStatus = powershell(
@@ -66,7 +66,7 @@ pipeline {
                     echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
 
                     if (dockerEnvSetup == "true") {
-                        env.DOCKER_ENV_CONFIGURED = true
+                        env.DOCKER_ENV_CONFIGURED = false
                         powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
                         echo "Configuration Docker réussie"
                     } else {
@@ -154,7 +154,7 @@ pipeline {
             }
         }
 
-        stage('HELM Deployment') {
+        stage('Helm Deployment') {
             when {
                 expression {
                     echo "Vérification de DOCKER_ENV_CONFIGURED pour Helm: ${env.DOCKER_ENV_CONFIGURED}"
