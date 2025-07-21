@@ -170,7 +170,7 @@ pipeline {
                     '''
 
                     echo "Vérification du PATH"
-                    Write-Host "$env.PATH"
+                    Write-Host "$env:PATH"
 
                     echo "Vérifier que Helm est accessible"
                     powershell "helm version"
