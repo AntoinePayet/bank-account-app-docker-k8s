@@ -169,6 +169,9 @@ pipeline {
                         $env:PATH += ";C:\\Users\\apayet\\IdeaProjects\\helm\\windows-amd64"
                     '''
 
+                    echo "Vérification du PATH"
+                    Write-Host $env:PATH
+
                     echo "Vérifier que Helm est accessible"
                     powershell "helm version"
 
