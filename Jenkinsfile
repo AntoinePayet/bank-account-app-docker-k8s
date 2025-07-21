@@ -26,7 +26,7 @@ pipeline {
 
     environment {
         DOCKER_TLS_VERIFY = "1"
-        DOCKER_HOST = "tcp://127.0.0.1:62099"
+        DOCKER_HOST = "tcp://127.0.0.1:57773"
         DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
         MINIKUBE_ACTIVE_DOCKERD = "minikube"
         DOCKER_REGISTRY = 'localhost:5000'
