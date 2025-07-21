@@ -162,6 +162,9 @@ pipeline {
             }
             steps {
                 script {
+                    echo "Installation de Helm"
+                    powershell "winget install Helm.Helm"
+
                     echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
