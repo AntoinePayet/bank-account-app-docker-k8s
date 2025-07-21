@@ -116,42 +116,42 @@ pipeline {
             }
         }
 
-        stage('Build Projects') {
-            steps {
-                script {
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            powershell 'mvn -B clean package -DskipTests'
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Build & Push Images Docker') {
-            when {
-                expression {
-                    echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
-                    return env.DOCKER_ENV_CONFIGURED == 'true'
-                }
-            }
-            steps {
-                script {
-                    echo "Début de la construction des images Docker"
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                            echo "Construction de l'image: ${imageTag}"
-                            powershell "docker build -t ${imageTag} ."
-                            echo "Push de l'image: ${imageTag}"
-                            powershell "docker push ${imageTag}"
-                        }
-                    }
-                }
-            }
-        }
+//         stage('Build Projects') {
+//             steps {
+//                 script {
+//                     def servicesList = env.CHANGES.split(',')
+//                     for (service in servicesList) {
+//                         dir(service) {
+//                             powershell 'mvn -B clean package -DskipTests'
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//
+//         stage('Build & Push Images Docker') {
+//             when {
+//                 expression {
+//                     echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
+//                     return env.DOCKER_ENV_CONFIGURED == 'true'
+//                 }
+//             }
+//             steps {
+//                 script {
+//                     echo "Début de la construction des images Docker"
+//                     def servicesList = env.CHANGES.split(',')
+//                     for (service in servicesList) {
+//                         dir(service) {
+//                             def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
+//                             echo "Construction de l'image: ${imageTag}"
+//                             powershell "docker build -t ${imageTag} ."
+//                             echo "Push de l'image: ${imageTag}"
+//                             powershell "docker push ${imageTag}"
+//                         }
+//                     }
+//                 }
+//             }
+//         }
 
         stage('Helm Deployment') {
             when {
