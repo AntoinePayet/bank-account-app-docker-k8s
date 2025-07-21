@@ -163,7 +163,21 @@ pipeline {
             steps {
                 script {
                     echo "Installation de Helm"
-                    powershell "winget install Helm.Helm"
+                    powershell '''
+                        $helmZipPath = "C:\Users\apayet\Downloads\helm-v3.18.4-windows-amd64.zip"
+                        $helmExtractPath = "C:\Users\apayet\IdeaProjects\helm"
+
+                        # Créer le répertoire de destination s'il n'existe pas
+                        if (-not (Test-Path $helmExtractPath)) {
+                            New-Item -ItemType Directory -Force -Path $helmExtractPath
+                        }
+
+                        # Extraire le ZIP
+                        Expand-Archive -Path $helmZipPath -DestinationPath $helmExtractPath -Force
+
+                        # Ajouter Helm au PATH pour cette session
+                        $env:Path += ";$helmExtractPath\windows-amd64"
+                    '''
 
                     echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
