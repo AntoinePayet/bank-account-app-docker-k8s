@@ -162,33 +162,33 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Installation de Helm"
-                    powershell '''
-                        $helmZipPath = "C:\\Users\\apayet\\Downloads\\helm-v3.18.4-windows-amd64.zip"
-                        $helmExtractPath = "C:\\Users\\apayet\\IdeaProjects\\helm"
-                        $helmBinPath = "$helmInstallPath\\windows-amd64"
-
-                        # Créer le répertoire de destination s'il n'existe pas
-                        if (-not (Test-Path $helmExtractPath)) {
-                            New-Item -ItemType Directory -Force -Path $helmExtractPath
-                        }
-
-                        # Extraire le ZIP
-                        Expand-Archive -Path $helmZipPath -DestinationPath $helmExtractPath -Force
-
-                        # Ajouter Helm au PATH pour la session actuelle
-                        $env:Path += ";$helmBinPath"
-
-                        # Vérifier que helm.exe existe
-                        if (Test-Path "$helmBinPath\\helm.exe") {
-                            Write-Host "Helm.exe trouvé dans : $helmBinPath"
-                        } else {
-                            throw "Helm.exe non trouvé dans : $helmBinPath"
-                        }
-
-                        # Afficher la version de Helm
-                        & "$helmBinPath\\helm.exe" version
-                    '''
+//                     echo "Installation de Helm"
+//                     powershell '''
+//                         $helmZipPath = "C:\\Users\\apayet\\Downloads\\helm-v3.18.4-windows-amd64.zip"
+//                         $helmExtractPath = "C:\\Users\\apayet\\IdeaProjects\\helm"
+//                         $helmBinPath = "$helmInstallPath\\windows-amd64"
+//
+//                         # Créer le répertoire de destination s'il n'existe pas
+//                         if (-not (Test-Path $helmExtractPath)) {
+//                             New-Item -ItemType Directory -Force -Path $helmExtractPath
+//                         }
+//
+//                         # Extraire le ZIP
+//                         Expand-Archive -Path $helmZipPath -DestinationPath $helmExtractPath -Force
+//
+//                         # Ajouter Helm au PATH pour la session actuelle
+//                         $env:Path += ";$helmBinPath"
+//
+//                         # Vérifier que helm.exe existe
+//                         if (Test-Path "$helmBinPath\\helm.exe") {
+//                             Write-Host "Helm.exe trouvé dans : $helmBinPath"
+//                         } else {
+//                             throw "Helm.exe non trouvé dans : $helmBinPath"
+//                         }
+//
+//                         # Afficher la version de Helm
+//                         & "$helmBinPath\\helm.exe" version
+//                     '''
 
 
                     echo "Début du déploiement Helm"
