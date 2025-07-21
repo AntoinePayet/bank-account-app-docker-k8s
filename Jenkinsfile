@@ -30,13 +30,15 @@ pipeline {
         DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
         MINIKUBE_ACTIVE_DOCKERD = "minikube"
         DOCKER_REGISTRY = 'localhost:5000'
-        DOCKER_ENV_CONFIGURED = true
+//         DOCKER_ENV_CONFIGURED = false
     }
 
     stages {
         stage('Checking Docker environment') {
             steps {
                 script {
+                    env.DOCKER_ENV_CONFIGURED = "false"
+
                     // Vérifier si Minikube est en cours d'exécution
                     def minikubeStatus = powershell(
                         script: 'minikube status',
@@ -64,7 +66,7 @@ pipeline {
                     echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
 
                     if (dockerEnvSetup == "true") {
-//                         env:DOCKER_ENV_CONFIGURED = true
+                        env.DOCKER_ENV_CONFIGURED = true
                         powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
                         echo "Configuration Docker réussie"
                     } else {
@@ -82,7 +84,7 @@ pipeline {
                         Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
                         Write-Host "========================================"
                     '''
-                    echo "Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
+                    echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
                 }
             }
         }
