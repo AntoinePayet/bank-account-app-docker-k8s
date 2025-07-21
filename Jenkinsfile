@@ -166,6 +166,7 @@ pipeline {
                     powershell '''
                         $helmZipPath = "C:\\Users\\apayet\\Downloads\\helm-v3.18.4-windows-amd64.zip"
                         $helmExtractPath = "C:\\Users\\apayet\\IdeaProjects\\helm"
+                        $helmBinPath = "$helmInstallPath\\windows-amd64"
 
                         # Créer le répertoire de destination s'il n'existe pas
                         if (-not (Test-Path $helmExtractPath)) {
@@ -175,23 +176,18 @@ pipeline {
                         # Extraire le ZIP
                         Expand-Archive -Path $helmZipPath -DestinationPath $helmExtractPath -Force
 
-                        # Ajouter Helm au PATH système de façon permanente
-                        $helmBinPath = "$helmInstallPath\\windows-amd64"
-                        $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+                        # Ajouter Helm au PATH pour la session actuelle
+                        $env:Path += ";$helmBinPath"
 
-                        if ($currentPath -notlike "*$helmBinPath*") {
-                            [Environment]::SetEnvironmentVariable(
-                                "Path",
-                                "$currentPath;$helmBinPath",
-                                "Machine"
-                            )
-
-                            # Mettre à jour le PATH de la session courante
-                            $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine")
+                        # Vérifier que helm.exe existe
+                        if (Test-Path "$helmBinPath\\helm.exe") {
+                            Write-Host "Helm.exe trouvé dans : $helmBinPath"
+                        } else {
+                            throw "Helm.exe non trouvé dans : $helmBinPath"
                         }
 
-                        # Vérifier l'installation
-                        helm version
+                        # Afficher la version de Helm
+                        & "$helmBinPath\\helm.exe" version
                     '''
 
 
