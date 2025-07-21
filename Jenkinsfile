@@ -175,9 +175,25 @@ pipeline {
                         # Extraire le ZIP
                         Expand-Archive -Path $helmZipPath -DestinationPath $helmExtractPath -Force
 
-                        # Ajouter Helm au PATH pour cette session
-                        $env:Path += ";$helmExtractPath\\windows-amd64"
+                        # Ajouter Helm au PATH système de façon permanente
+                        $helmBinPath = "$helmInstallPath\\windows-amd64"
+                        $currentPath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+
+                        if ($currentPath -notlike "*$helmBinPath*") {
+                            [Environment]::SetEnvironmentVariable(
+                                "Path",
+                                "$currentPath;$helmBinPath",
+                                "Machine"
+                            )
+
+                            # Mettre à jour le PATH de la session courante
+                            $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine")
+                        }
+
+                        # Vérifier l'installation
+                        helm version
                     '''
+
 
                     echo "Début du déploiement Helm"
                     def servicesList = env.CHANGES.split(',')
