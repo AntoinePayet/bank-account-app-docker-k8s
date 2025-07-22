@@ -84,6 +84,9 @@ pipeline {
                         Write-Host "========================================"
                     '''
                     echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
+
+                    echo "Début du déploiement sur Minikube"
+                    echo "Déploiement de ${service}"
                 }
             }
         }
