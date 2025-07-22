@@ -116,18 +116,18 @@ pipeline {
             }
         }
 
-//         stage('Build Projects') {
-//             steps {
-//                 script {
+        stage('Build Projects') {
+            steps {
+                script {
 //                     def servicesList = env.CHANGES.split(',')
 //                     for (service in servicesList) {
 //                         dir(service) {
 //                             powershell 'mvn -B clean package -DskipTests'
 //                         }
 //                     }
-//                 }
-//             }
-//         }
+                }
+            }
+        }
 
         stage('Build & Push Images Docker') {
             when {
