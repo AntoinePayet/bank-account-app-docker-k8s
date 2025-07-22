@@ -40,7 +40,7 @@ pipeline {
                             $status = minikube status
                             if ($LASTEXITCODE -ne 0) {
                                 Write-Host "Démarrage de Minikube..."
-                                minikube start --driver=hyperv
+                                minikube start
 
                                 # Attendre que Minikube soit complètement démarré
                                 $maxAttempts = 30
