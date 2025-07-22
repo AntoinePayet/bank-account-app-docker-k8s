@@ -85,8 +85,8 @@ pipeline {
                     '''
                     echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
 
-                    echo "Début du déploiement sur Minikube"
-                    echo "Déploiement de ${service}"
+                    echo "Minikube est il lancé / est il trouvé ?"
+                    powershell "minikube status"
                 }
             }
         }
