@@ -119,7 +119,7 @@ pipeline {
         stage('Build Projects') {
             steps {
                 script {
-                    powershell 'Etape build project commentée'
+                    echo "Etape build project commentée"
 //                     def servicesList = env.CHANGES.split(',')
 //                     for (service in servicesList) {
 //                         dir(service) {
