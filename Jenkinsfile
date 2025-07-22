@@ -29,6 +29,8 @@ pipeline {
         DOCKER_HOST = "tcp://127.0.0.1:52835"
         DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
         MINIKUBE_ACTIVE_DOCKERD = "minikube"
+        // La variable suivante est la seule utile si on arrive a se connecter à Minikube car la commande
+        // "minikube -p minikube docker-env --shell powershell | Invoke-Expression" récupère les autres variables
         DOCKER_REGISTRY = 'localhost:5000'
     }
 
@@ -130,12 +132,12 @@ pipeline {
         }
 
         stage('Build & Push Images Docker') {
-//             when {
-//                 expression {
-//                     echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
-//                     return env.DOCKER_ENV_CONFIGURED == 'true'
-//                 }
-//             }
+            when {
+                expression {
+                    echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
+                    return env.DOCKER_ENV_CONFIGURED == 'true'
+                }
+            }
             steps {
                 script {
                     echo "Début de la construction des images Docker"
@@ -154,12 +156,12 @@ pipeline {
         }
 
         stage('Minikube Deployment') {
-//             when {
-//                 expression {
-//                     echo "Vérification de DOCKER_ENV_CONFIGURED pour déployer les microservices sur Minikube: ${env.DOCKER_ENV_CONFIGURED}"
-//                     return env.DOCKER_ENV_CONFIGURED == 'true'
-//                 }
-//             }
+            when {
+                expression {
+                    echo "Vérification de DOCKER_ENV_CONFIGURED pour déployer les microservices sur Minikube: ${env.DOCKER_ENV_CONFIGURED}"
+                    return env.DOCKER_ENV_CONFIGURED == 'true'
+                }
+            }
             steps {
                 script {
                     echo "Début du déploiement sur Minikube"
@@ -174,16 +176,16 @@ pipeline {
             }
         }
     }
-//     post {
-//         failure {
-//             script {
-//                 if (env.DOCKER_ENV_CONFIGURED == 'false') {
-//                     echo "Le pipeline a échoué en raison d'une mauvaise configuration de l'environnement Docker"
-//                 }
-//             }
-//         }
-//         always {
-//             echo "État final de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
-//         }
-//     }
+    post {
+        failure {
+            script {
+                if (env.DOCKER_ENV_CONFIGURED == 'false') {
+                    echo "Le pipeline a échoué en raison d'une mauvaise configuration de l'environnement Docker"
+                }
+            }
+        }
+        always {
+            echo "État final de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
+        }
+    }
 }
