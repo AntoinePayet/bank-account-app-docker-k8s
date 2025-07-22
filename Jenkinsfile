@@ -158,13 +158,12 @@ pipeline {
                 expression {
                     echo "Vérification de DOCKER_ENV_CONFIGURED pour déployer les microservices sur Minikube: ${env.DOCKER_ENV_CONFIGURED}"
                     return env.DOCKER_ENV_CONFIGURED == 'true'
-
-                    echo "Minikube est il lancé / est il trouvé ?"
-                    powershell "minikube status"
                 }
             }
             steps {
                 script {
+                    echo "Minikube est il lancé / est il trouvé ?"
+                    powershell "minikube status"
                     echo "Début du déploiement sur Minikube"
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
