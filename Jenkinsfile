@@ -26,7 +26,7 @@ pipeline {
 
     environment {
         DOCKER_TLS_VERIFY = "1"
-        DOCKER_HOST = "tcp://127.0.0.1:51134"
+        DOCKER_HOST = "tcp://127.0.0.1:65321"
         DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
         MINIKUBE_ACTIVE_DOCKERD = "minikube"
         DOCKER_REGISTRY = 'localhost:5000'
@@ -116,18 +116,18 @@ pipeline {
             }
         }
 
-        stage('Build Projects') {
-            steps {
-                script {
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            powershell 'mvn -B clean package -DskipTests'
-                        }
-                    }
-                }
-            }
-        }
+//         stage('Build Projects') {
+//             steps {
+//                 script {
+//                     def servicesList = env.CHANGES.split(',')
+//                     for (service in servicesList) {
+//                         dir(service) {
+//                             powershell 'mvn -B clean package -DskipTests'
+//                         }
+//                     }
+//                 }
+//             }
+//         }
 
         stage('Build & Push Images Docker') {
             when {
