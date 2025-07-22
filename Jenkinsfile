@@ -158,6 +158,7 @@ pipeline {
                 expression {
                     echo "Vérification de DOCKER_ENV_CONFIGURED pour déployer les microservices sur Minikube: ${env.DOCKER_ENV_CONFIGURED}"
                     return env.DOCKER_ENV_CONFIGURED == 'true'
+                    powershell "minikube status"
                 }
             }
             steps {
