@@ -24,74 +24,7 @@ pipeline {
         maven 'maven-3.9.10'
     }
 
-    environment {
-        DOCKER_TLS_VERIFY = "1"
-        DOCKER_HOST = "tcp://127.0.0.1:52835"
-        DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
-        MINIKUBE_ACTIVE_DOCKERD = "minikube"
-        // La variable suivante est la seule utile si on arrive a se connecter à Minikube car la commande
-        // "minikube -p minikube docker-env --shell powershell | Invoke-Expression" récupère les autres variables
-        DOCKER_REGISTRY = 'localhost:5000'
-    }
-
     stages {
-        stage('Checking Docker environment') {
-            steps {
-                script {
-                    env.DOCKER_ENV_CONFIGURED = "false"
-
-                    // Vérifier si Minikube est en cours d'exécution
-                    def minikubeStatus = powershell(
-                        script: '''minikube status''',
-                        returnStatus: true
-                    )
-
-                    if (minikubeStatus != 0) {
-                        error "Minikube n'est pas en cours d'exécution"
-                    }
-
-                    // Configurer l'environnement Docker pour Minikube
-                    def dockerEnvSetup = powershell(
-                        script: '''
-                            Write-Host "Configuration de l'environnement Docker..."
-                            minikube -p minikube docker-env --shell powershell | Invoke-Expression
-                            if ($?) {
-                                Write-Output "true"
-                            } else {
-                                Write-Output "false"
-                            }
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
-
-                    if (dockerEnvSetup == "true") {
-                        env.DOCKER_ENV_CONFIGURED = true
-                        powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
-                        echo "Configuration Docker réussie"
-                    } else {
-                        error "Échec de la configuration de l'environnement Docker"
-                    }
-
-                    // Vérifier les variables d'environnement
-                    powershell '''
-                        Write-Host "=== Vérification de l'environnement Docker ==="
-                        Write-Host "Docker Host: $env:DOCKER_HOST"
-                        Write-Host "Docker Cert Path: $env:DOCKER_CERT_PATH"
-                        Write-Host "Docker TLS Verify: $env:DOCKER_TLS_VERIFY"
-                        Write-Host "Minikube Active Dockerd: $env:MINIKUBE_ACTIVE_DOCKERD"
-                        Write-Host "Docker Registry: $env:DOCKER_REGISTRY"
-                        Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
-                        Write-Host "========================================"
-                    '''
-                    echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
-                }
-            }
-        }
-
-
-
         stage('Detect Changes') {
             steps {
                 script {
@@ -131,61 +64,31 @@ pipeline {
             }
         }
 
-        stage('Build & Push Images Docker') {
-            when {
-                expression {
-                    echo "Vérification de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
-                    return env.DOCKER_ENV_CONFIGURED == 'true'
-                }
-            }
+        stage('Build and Deploy with Docker Compose') {
             steps {
                 script {
-                    echo "Début de la construction des images Docker"
                     def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            def imageTag = "${DOCKER_REGISTRY}/${service}:${env.BUILD_NUMBER}"
-                            echo "Construction de l'image: ${imageTag}"
-                            powershell "docker build -t ${imageTag} ."
-                            echo "Push de l'image: ${imageTag}"
-                            powershell "docker push ${imageTag}"
-                        }
-                    }
-                }
-            }
-        }
 
-        stage('Minikube Deployment') {
-            when {
-                expression {
-                    echo "Vérification de DOCKER_ENV_CONFIGURED pour déployer les microservices sur Minikube: ${env.DOCKER_ENV_CONFIGURED}"
-                    return env.DOCKER_ENV_CONFIGURED == 'true'
-                }
-            }
-            steps {
-                script {
-                    echo "Début du déploiement sur Minikube"
-                    def servicesList = env.CHANGES.split(',')
+                    // Construction des images Docker pour les services modifiés
                     for (service in servicesList) {
                         dir(service) {
-                            echo "Déploiement de ${service}"
-                            powershell "minikube kubectl -- apply -f .\\${service}.yaml --validate=false"
+                            def imageTag = "${service}:${env.BUILD_NUMBER}"
+                            powershell "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+
+                            // Mise à jour du tag d'image dans docker-compose.yml
+                            powershell """
+                                powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
+                            """
                         }
                     }
+
+                    // Arrêt des services existants
+                    powershell 'docker-compose -H tcp://localhost:2375 down'
+
+                    // Démarrage des services avec docker-compose
+                    powershell 'docker-compose -H tcp://localhost:2375 up -d --build'
                 }
             }
-        }
-    }
-    post {
-        failure {
-            script {
-                if (env.DOCKER_ENV_CONFIGURED == 'false') {
-                    echo "Le pipeline a échoué en raison d'une mauvaise configuration de l'environnement Docker"
-                }
-            }
-        }
-        always {
-            echo "État final de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
         }
     }
 }
