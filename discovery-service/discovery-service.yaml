@@ -1,14 +1,56 @@
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: discovery-service
   labels:
     app: discovery-service
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: discovery-service
+  template:
+    metadata:
+      labels:
+        app: discovery-service
+    spec:
+      containers:
+        - name: discovery-service
+          # L'image utilise le registre local et le numéro de build défini dans Jenkins
+          image: localhost:5000/discovery-service:${BUILD_NUMBER}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8761
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: discovery-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8761  # Port du service exposé sur le cluster Kubernetes
+      targetPort: 8761 # Port sur lequel votre service d'authentification écoute dans le pod
+      protocol: TCP
+      name: http
   selector:
     app: discovery-service
-  ports:
-    - protocol: TCP
-      port: 8761 # Port du service expos� sur le cluster Kubernetes
-      targetPort: 8761 # Port sur lequel votre service d'authentification �coute dans le pod
-  type: ClusterIP

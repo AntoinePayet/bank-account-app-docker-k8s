@@ -1,35 +1,37 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: config-service
+  name: gateway-service
   labels:
-    app: config-service
+    app: gateway-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: config-service
+      app: gateway-service
   template:
     metadata:
       labels:
-        app: config-service
+        app: gateway-service
     spec:
       containers:
-        - name: config-service
-          # L'image utilise le registre local et le numÃ©ro de build dÃ©fini dans Jenkins
-          image: localhost:5000/config-service:${BUILD_NUMBER}
+        - name: gateway-service
+          # L'image utilise le registre local et le numéro de build défini dans Jenkins
+          image: localhost:5000/gateway-service:${BUILD_NUMBER}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
-              containerPort: 9999
+              containerPort: 8888
               protocol: TCP
           env:
+            - name: CONFIG_SERVICE_URL
+              value: "http://config-service:9999"
             - name: DISCOVERY_SERVICE_URL
               value: "http://discovery-service:8761/eureka"
           livenessProbe:
             httpGet:
               path: /actuator/health
-              port: 9999
+              port: 8888
             initialDelaySeconds: 15
             periodSeconds: 10
             timeoutSeconds: 3
@@ -37,7 +39,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /actuator/health
-              port: 9999
+              port: 8888
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
@@ -47,13 +49,13 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: config-service
+  name: gateway-service
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   ports:
-    - port: 9999  # Port du service exposÃ© sur le cluster Kubernetes
-      targetPort: 9999 # Port sur lequel votre service d'authentification Ã©coute dans le pod
+    - port: 8888  # Port du service exposé sur le cluster Kubernetes
+      targetPort: 8888 # Port sur lequel votre service d'authentification écoute dans le pod
       protocol: TCP
       name: http
   selector:
-    app: config-service
+    app: gateway-service

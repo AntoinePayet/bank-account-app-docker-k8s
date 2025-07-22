@@ -153,31 +153,21 @@ pipeline {
             }
         }
 
-        stage('Helm Deployment') {
+        stage('Minikube Deployment') {
             when {
                 expression {
-                    echo "Vérification de DOCKER_ENV_CONFIGURED pour Helm: ${env.DOCKER_ENV_CONFIGURED}"
+                    echo "Vérification de DOCKER_ENV_CONFIGURED pour déployer les microservices sur Minikube: ${env.DOCKER_ENV_CONFIGURED}"
                     return env.DOCKER_ENV_CONFIGURED == 'true'
                 }
             }
             steps {
                 script {
-                    echo "Installation de Helm"
-                    powershell '''
-                        Invoke-WebRequest -Uri "https://get.helm.sh/helm-v3.8.0-windows-amd64.zip" -OutFile "helm-v3.8.0-windows-amd64.zip"
-                        Expand-Archive -Path "helm-v3.8.0-windows-amd64.zip" -DestinationPath "C:\\Users\\apayet\\IdeaProjects\\helm"
-                        $env:PATH += ";C:\\Users\\apayet\\IdeaProjects\\helm\\windows-amd64"
-                    '''
-
-                    echo "Vérifier que Helm est accessible"
-                    powershell "helm version"
-
-                    echo "Début du déploiement Helm"
+                    echo "Début du déploiement sur Minikube"
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
                             echo "Déploiement de ${service}"
-                            powershell 'helm install ${service} ".\\${service}\\"'
+                            powershell "minikube kubectl -- apply -f ..\\${service}\\${service}.yaml"
                         }
                     }
                 }
