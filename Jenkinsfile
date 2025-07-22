@@ -84,9 +84,6 @@ pipeline {
                         Write-Host "========================================"
                     '''
                     echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
-
-                    echo "Minikube est il lancé / est il trouvé ?"
-                    powershell "minikube status"
                 }
             }
         }
