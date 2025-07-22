@@ -25,10 +25,6 @@ pipeline {
     }
 
     environment {
-        DOCKER_TLS_VERIFY = "1"
-        DOCKER_HOST = "tcp://127.0.0.1:52835"
-        DOCKER_CERT_PATH = "C:\\Users\\apayet\\.minikube\\certs"
-        MINIKUBE_ACTIVE_DOCKERD = "minikube"
         DOCKER_REGISTRY = 'localhost:5000'
     }
 
@@ -40,12 +36,53 @@ pipeline {
 
                     // Vérifier si Minikube est en cours d'exécution
                     def minikubeStatus = powershell(
-                        script: 'minikube status',
+                        script: '''
+                            $status = minikube status
+                            if ($LASTEXITCODE -ne 0) {
+                                Write-Host "Démarrage de Minikube..."
+                                minikube start --driver=hyperv
+
+                                # Attendre que Minikube soit complètement démarré
+                                $maxAttempts = 30
+                                $attempt = 0
+                                $ready = $false
+
+                                Write-Host "Attente du démarrage complet de Minikube..."
+                                do {
+                                    $attempt++
+                                    Write-Host "Tentative $attempt sur $maxAttempts..."
+
+                                    $status = minikube status
+                                    if ($LASTEXITCODE -eq 0) {
+                                        # Vérifier que tous les composants sont "Running"
+                                        $statusOutput = minikube status --output=json | ConvertFrom-Json
+                                        if ($statusOutput.Host -eq "Running" -and
+                                            $statusOutput.Kubelet -eq "Running" -and
+                                            $statusOutput.APIServer -eq "Running") {
+                                            $ready = $true
+                                            Write-Host "Minikube est complètement démarré!"
+                                            break
+                                        }
+                                    }
+
+                                    Start-Sleep -Seconds 10
+                                } while ($attempt -lt $maxAttempts -and -not $ready)
+
+                                if (-not $ready) {
+                                    Write-Error "Timeout en attendant le démarrage de Minikube"
+                                    exit 1
+                                }
+                            } else {
+                                Write-Host "Minikube est déjà en cours d'exécution"
+                            }
+                            # Vérification finale du statut
+                            minikube status
+                        ''',
                         returnStatus: true
                     )
 
                     if (minikubeStatus != 0) {
-                        error "Minikube n'est pas en cours d'exécution"
+                        error "Erreur lors du démarrage/vérification de Minikube"
                     }
 
                     // Configurer l'environnement Docker pour Minikube
@@ -83,12 +120,9 @@ pipeline {
                         Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
                         Write-Host "========================================"
                     '''
-                    echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
                 }
             }
         }
-
-
 
         stage('Detect Changes') {
             steps {
@@ -183,9 +217,6 @@ pipeline {
                     echo "Le pipeline a échoué en raison d'une mauvaise configuration de l'environnement Docker"
                 }
             }
-        }
-        always {
-            echo "État final de DOCKER_ENV_CONFIGURED: ${env.DOCKER_ENV_CONFIGURED}"
         }
     }
 }
