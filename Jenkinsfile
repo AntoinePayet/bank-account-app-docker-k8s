@@ -167,7 +167,7 @@ pipeline {
                     for (service in servicesList) {
                         dir(service) {
                             echo "Déploiement de ${service}"
-                            powershell "minikube kubectl -- apply -f ..\\${service}\\${service}.yaml"
+                            powershell "minikube kubectl -- apply -f ..\\${service}\\${service}.yaml --validate=false"
                         }
                     }
                 }
