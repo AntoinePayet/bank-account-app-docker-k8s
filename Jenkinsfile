@@ -29,60 +29,60 @@ pipeline {
     }
 
     stages {
-//         stage('Checking Docker environment') {
-//             steps {
-//                 script {
-//                     env.DOCKER_ENV_CONFIGURED = "false"
-//
-//                     // Vérifier si Minikube est en cours d'exécution
-//                     def minikubeStatus = powershell(
-//                         script: '''minikube status''',
-//                         returnStatus: true
-//                     )
-//
-//                     if (minikubeStatus != 0) {
-//                         error "Minikube n'est pas en cours d'exécution"
-//                     }
-//
-//                     // Configurer l'environnement Docker pour Minikube
-//                     def dockerEnvSetup = powershell(
-//                         script: '''
-//                             Write-Host "Configuration de l'environnement Docker..."
-//                             minikube -p minikube docker-env --shell powershell | Invoke-Expression
-//                             if ($?) {
-//                                 Write-Output "true"
-//                             } else {
-//                                 Write-Output "false"
-//                             }
-//                         ''',
-//                         returnStdout: true
-//                     ).trim()
-//
-//                     echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
-//
-//                     if (dockerEnvSetup == "true") {
-//                         env.DOCKER_ENV_CONFIGURED = true
-//                         powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
-//                         echo "Configuration Docker réussie"
-//                     } else {
-//                         error "Échec de la configuration de l'environnement Docker"
-//                     }
-//
-//                     // Vérifier les variables d'environnement
-//                     powershell '''
-//                         Write-Host "=== Vérification de l'environnement Docker ==="
-//                         Write-Host "Docker Host: $env:DOCKER_HOST"
-//                         Write-Host "Docker Cert Path: $env:DOCKER_CERT_PATH"
-//                         Write-Host "Docker TLS Verify: $env:DOCKER_TLS_VERIFY"
-//                         Write-Host "Minikube Active Dockerd: $env:MINIKUBE_ACTIVE_DOCKERD"
-//                         Write-Host "Docker Registry: $env:DOCKER_REGISTRY"
-//                         Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
-//                         Write-Host "========================================"
-//                     '''
-//                     echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
-//                 }
-//             }
-//         }
+        stage('Checking Docker environment') {
+            steps {
+                script {
+                    env.DOCKER_ENV_CONFIGURED = "false"
+
+                    // Vérifier si Minikube est en cours d'exécution
+                    def minikubeStatus = powershell(
+                        script: '''minikube status''',
+                        returnStatus: true
+                    )
+
+                    if (minikubeStatus != 0) {
+                        error "Minikube n'est pas en cours d'exécution"
+                    }
+
+                    // Configurer l'environnement Docker pour Minikube
+                    def dockerEnvSetup = powershell(
+                        script: '''
+                            Write-Host "Configuration de l'environnement Docker..."
+                            minikube -p minikube docker-env --shell powershell | Invoke-Expression
+                            if ($?) {
+                                Write-Output "true"
+                            } else {
+                                Write-Output "false"
+                            }
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Résultat de la configuration Docker: ${dockerEnvSetup}"
+
+                    if (dockerEnvSetup == "true") {
+                        env.DOCKER_ENV_CONFIGURED = true
+                        powershell 'Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"'
+                        echo "Configuration Docker réussie"
+                    } else {
+                        error "Échec de la configuration de l'environnement Docker"
+                    }
+
+                    // Vérifier les variables d'environnement
+                    powershell '''
+                        Write-Host "=== Vérification de l'environnement Docker ==="
+                        Write-Host "Docker Host: $env:DOCKER_HOST"
+                        Write-Host "Docker Cert Path: $env:DOCKER_CERT_PATH"
+                        Write-Host "Docker TLS Verify: $env:DOCKER_TLS_VERIFY"
+                        Write-Host "Minikube Active Dockerd: $env:MINIKUBE_ACTIVE_DOCKERD"
+                        Write-Host "Docker Registry: $env:DOCKER_REGISTRY"
+                        Write-Host "Docker Env Configured: $env:DOCKER_ENV_CONFIGURED"
+                        Write-Host "========================================"
+                    '''
+                    echo "The Docker Env Configured: ${env.DOCKER_ENV_CONFIGURED}"
+                }
+            }
+        }
 
 
 
