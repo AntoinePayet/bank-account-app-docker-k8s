@@ -51,7 +51,7 @@ pipeline {
             }
         }
 
-        stage('Build Projects') {
+        stage('Project compilation') {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
