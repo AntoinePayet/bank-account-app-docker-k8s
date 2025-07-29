@@ -64,10 +64,17 @@ pipeline {
             }
         }
 
-
        stage('Docker Scout') {
             steps {
                 script {
+                    // Mise à jour de Docker Scout CLI (optionnel mais recommandé)
+                    powershell 'docker scout version update'
+
+                    // Connexion à Docker avec le DockerID
+                    powershell "docker login -u antoinepayet -p ${DOCKER_PAT}"
+
+// docker id :  f56e155b0058f104cde1  / antoinepayet
+
                     def servicesList = env.CHANGES.split(',')
 
                     for (service in servicesList) {
