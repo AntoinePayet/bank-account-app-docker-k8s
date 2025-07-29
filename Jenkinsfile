@@ -68,10 +68,11 @@ pipeline {
             steps {
                 script {
                     // Mise à jour de Docker Scout CLI (optionnel mais recommandé)
-                    powershell 'docker scout version update'
+//                     powershell 'docker scout version update'
+                    powershell 'docker scout version'
 
-                    // Connexion à Docker avec le DockerID
-                    powershell "docker login -u antoinepayet -p ${DOCKER_PAT}"
+//                     // Connexion à Docker avec le DockerID
+//                     powershell "docker login -u antoinepayet -p ${DOCKER_PAT}"
 
 // docker id :  f56e155b0058f104cde1  / antoinepayet
 
