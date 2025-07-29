@@ -64,6 +64,29 @@ pipeline {
             }
         }
 
+
+       stage('Docker Scout') {
+            steps {
+                script {
+                    def servicesList = env.CHANGES.split(',')
+
+                    for (service in servicesList) {
+                        def imageTag = "${service}:${env.BUILD_NUMBER}"
+
+                        // Analyse de l'image avec Docker Scout
+                        powershell """
+                            docker -H tcp://localhost:2375 scout cves ${imageTag} --exit-code --only-severity critical,high
+                        """
+
+                        // Génération d'un rapport de vulnérabilités (optionnel)
+                        powershell """
+                            docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt
+                        """
+                    }
+                }
+            }
+       }
+
         stage('Build and Deploy with Docker Compose') {
             steps {
                 script {
