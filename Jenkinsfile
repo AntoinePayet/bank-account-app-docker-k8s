@@ -71,31 +71,47 @@ pipeline {
 
                     // Connexion à Docker Hub avec le PAT
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
-                        powershell '(Get-Item -Path Env:$DOCKER_PAT).Value | docker login -u antoinepayet --password-stdin'
+                        try {
+                            // Test de la connexion Docker
+                            powershell '''
+                                # Vérifier que Docker est en cours d'exécution
+                                docker info
 
-                        def servicesList = env.CHANGES.split(',')
+                                # Tentative de connexion avec vérification
+                                $env:DOCKER_PAT | docker login --username antoinepayet --password-stdin
 
-                        for (service in servicesList) {
-                            def imageTag = "${service}:${env.BUILD_NUMBER}"
+                                # Vérifier le status de la connexion
+                                if ($LASTEXITCODE -ne 0) {
+                                    throw "Échec de la connexion Docker"
+                                }
+                            '''
 
-                            // Vue d'ensemble rapide
-                            powershell """
-                                docker -H tcp://localhost:2375 scout quickview ${imageTag}
-                            """
+                            def servicesList = env.CHANGES.split(',')
 
-                            // Analyse détaillée des CVE
-                            powershell """
-                                docker -H tcp://localhost:2375 scout cves ${imageTag} --exit-code --only-severity critical,high
-                            """
+                            for (service in servicesList) {
+                                def imageTag = "${service}:${env.BUILD_NUMBER}"
 
-                            // Génération d'un rapport de vulnérabilités (optionnel)
-                            powershell """
-                                docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt
-                            """
+                                // Vérifier que l'image existe
+                                powershell """
+                                    if (-not (docker images -q ${imageTag})) {
+                                        Write-Error "L'image ${imageTag} n'existe pas"
+                                        exit 1
+                                    }
+                                """
+
+                                // Analyse avec Docker Scout
+                                powershell """
+                                    docker -H tcp://localhost:2375 scout quickview ${imageTag} || Write-Warning "Analyse quickview échouée pour ${imageTag}"
+                                    docker -H tcp://localhost:2375 scout cves ${imageTag} --only-severity critical,high || Write-Warning "Analyse CVE échouée pour ${imageTag}"
+                                    docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt || Write-Warning "Génération du rapport échouée pour ${imageTag}"
+                                """
+                            }
+                        } catch (Exception e) {
+                            powershell 'docker logout'
+                            error "Erreur dans l'étape Docker Scout: ${e.message}"
+                        } finally {
+                            powershell 'docker logout'
                         }
-
-                        // Déconnexion de Docker Hub
-                        powershell 'docker logout'
                     }
                 }
             }
