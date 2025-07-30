@@ -64,10 +64,10 @@ pipeline {
             }
         }
 
-       stage('Docker Scout') {
+        stage('Docker Scout') {
             steps {
                 script {
-//                     powershell 'docker scout version'
+                    // powershell 'docker scout version'
 
                     // Connexion à Docker Hub avec le PAT
                     withCredentials([string(credentialsID: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
@@ -75,32 +75,33 @@ pipeline {
                             echo $DOCKER_PAT | docker login -u antoinepayet --password-stdin
                         """
 
-                    def servicesList = env.CHANGES.split(',')
+                        def servicesList = env.CHANGES.split(',')
 
-                    for (service in servicesList) {
-                        def imageTag = "${service}:${env.BUILD_NUMBER}"
+                        for (service in servicesList) {
+                            def imageTag = "${service}:${env.BUILD_NUMBER}"
 
-                        // Vue d'ensemble rapide
-                        powershell """
-                            docker -H tcp://localhost:2375 scout quickview ${imageTag}
-                        """
+                            // Vue d'ensemble rapide
+                            powershell """
+                                docker -H tcp://localhost:2375 scout quickview ${imageTag}
+                            """
 
-                        // Analyse détaillée des CVE
-                        powershell """
-                            docker -H tcp://localhost:2375 scout cves ${imageTag} --exit-code --only-severity critical,high
-                        """
+                            // Analyse détaillée des CVE
+                            powershell """
+                                docker -H tcp://localhost:2375 scout cves ${imageTag} --exit-code --only-severity critical,high
+                            """
 
-                        // Génération d'un rapport de vulnérabilités (optionnel)
-                        powershell """
-                            docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt
-                        """
+                            // Génération d'un rapport de vulnérabilités (optionnel)
+                            powershell """
+                                docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt
+                            """
+                        }
+
+                        // Déconnexion de Docker Hub
+                        powershell 'docker logout'
                     }
-
-                    // Déconnexion de Docker Hub
-                    powershell 'docker logout'
                 }
             }
-       }
+        }
 
         stage('Build and Deploy with Docker Compose') {
             steps {
