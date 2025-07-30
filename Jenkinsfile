@@ -72,17 +72,13 @@ pipeline {
                     // Connexion à Docker Hub avec le PAT
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
                         try {
-                            // Connexion via un fichier temporaire sécurisé
+                            // Connexion à Docker
                             powershell '''
-                                # Créer un fichier temporaire sécurisé
-                                $tempFile = New-TemporaryFile
-                                $env:DOCKER_PAT | Out-File -FilePath $tempFile.FullName
+                                # Tentative de déconnexion préalable
+                                docker -H tcp://localhost:2375 logout
 
-                                # Utiliser le fichier pour la connexion
-                                Get-Content $tempFile.FullName | docker login --username antoinepayet --password-stdin
-
-                                # Nettoyer immédiatement le fichier
-                                Remove-Item -Path $tempFile.FullName -Force
+                                # Configuration de l'authentification
+                                $env:DOCKER_PAT | docker -H tcp://localhost:2375 login --username antoinepayet --password-stdin
 
                                 # Vérifier le statut
                                 if ($LASTEXITCODE -ne 0) {
@@ -94,16 +90,6 @@ pipeline {
 
                             for (service in servicesList) {
                                 def imageTag = "${service}:${env.BUILD_NUMBER}"
-
-                                // Vérifier que l'image existe
-                                powershell """
-                                    if (-not (docker images -q ${imageTag})) {
-                                        Write-Error "L'image ${imageTag} n'existe pas"
-                                        exit 1
-                                    }
-                                """
-
-                                // Analyse avec Docker Scout
                                 powershell """
                                     docker -H tcp://localhost:2375 scout quickview ${imageTag} || Write-Warning "Analyse quickview échouée pour ${imageTag}"
                                     docker -H tcp://localhost:2375 scout cves ${imageTag} --only-severity critical,high || Write-Warning "Analyse CVE échouée pour ${imageTag}"
@@ -111,10 +97,9 @@ pipeline {
                                 """
                             }
                         } catch (Exception e) {
-                            powershell 'docker logout'
                             error "Erreur dans l'étape Docker Scout: ${e.message}"
                         } finally {
-                            powershell 'docker logout'
+                            powershell 'docker -H tcp://localhost:2375 logout'
                         }
                     }
                 }
