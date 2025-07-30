@@ -71,9 +71,7 @@ pipeline {
 
                     // Connexion à Docker Hub avec le PAT
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
-                        powershell """
-                            echo $DOCKER_PAT | docker login -u antoinepayet --password-stdin
-                        """
+                        powershell '(Get-Item -Path Env:$DOCKER_PAT).Value | docker login -u antoinepayet --password-stdin'
 
                         def servicesList = env.CHANGES.split(',')
 
