@@ -67,21 +67,25 @@ pipeline {
        stage('Docker Scout') {
             steps {
                 script {
-                    // Mise à jour de Docker Scout CLI (optionnel mais recommandé)
-//                     powershell 'docker scout version update'
-                    powershell 'docker scout version'
+//                     powershell 'docker scout version'
 
-//                     // Connexion à Docker avec le DockerID
-//                     powershell "docker login -u antoinepayet -p ${DOCKER_PAT}"
-
-// docker id :  f56e155b0058f104cde1  / antoinepayet
+                    // Connexion à Docker Hub avec le PAT
+                    withCredentials([strign](credentialsID: 'DOCKER_PAT', variable: 'DOCKER_PAT')]){
+                        powershell """
+                            echo $DOCKER_PAT | docker login -u antoinepayet --password-stdin
+                        """
 
                     def servicesList = env.CHANGES.split(',')
 
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
 
-                        // Analyse de l'image avec Docker Scout
+                        // Vue d'ensemble rapide
+                        powershell """
+                            docker -H tcp://localhost:2375 scout quickview ${imageTag}
+                        """
+
+                        // Analyse détaillée des CVE
                         powershell """
                             docker -H tcp://localhost:2375 scout cves ${imageTag} --exit-code --only-severity critical,high
                         """
@@ -91,6 +95,9 @@ pipeline {
                             docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt
                         """
                     }
+
+                    // Déconnexion de Docker Hub
+                    powershell 'docker logout'
                 }
             }
        }
