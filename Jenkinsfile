@@ -72,15 +72,19 @@ pipeline {
                     // Connexion à Docker Hub avec le PAT
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
                         try {
-                            // Test de la connexion Docker
+                            // Connexion via un fichier temporaire sécurisé
                             powershell '''
-                                # Vérifier que Docker est en cours d'exécution
-                                docker info
+                                # Créer un fichier temporaire sécurisé
+                                $tempFile = New-TemporaryFile
+                                $env:DOCKER_PAT | Out-File -FilePath $tempFile.FullName
 
-                                # Tentative de connexion avec vérification
-                                $env:DOCKER_PAT | docker login --username antoinepayet --password-stdin
+                                # Utiliser le fichier pour la connexion
+                                Get-Content $tempFile.FullName | docker login --username antoinepayet --password-stdin
 
-                                # Vérifier le status de la connexion
+                                # Nettoyer immédiatement le fichier
+                                Remove-Item -Path $tempFile.FullName -Force
+
+                                # Vérifier le statut
                                 if ($LASTEXITCODE -ne 0) {
                                     throw "Échec de la connexion Docker"
                                 }
