@@ -70,7 +70,7 @@ pipeline {
 //                     powershell 'docker scout version'
 
                     // Connexion à Docker Hub avec le PAT
-                    withCredentials([strign](credentialsID: 'DOCKER_PAT', variable: 'DOCKER_PAT')]){
+                    withCredentials([string(credentialsID: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
                         powershell """
                             echo $DOCKER_PAT | docker login -u antoinepayet --password-stdin
                         """
