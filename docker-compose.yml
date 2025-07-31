@@ -73,3 +73,11 @@ services:
     depends_on:
       config-service:
         condition: service_healthy
+
+  angular-front-end:
+    image: angular-front-end:latest
+    container_name: angular-front-end
+    ports:
+      - '80:80'
+    expose:
+      - '80'

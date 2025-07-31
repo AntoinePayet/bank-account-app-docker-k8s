@@ -1,21 +1,13 @@
+// Recherche les dossiers dans le projet
 def microservices = [
     'account-service',
+    'angular-front-end'
     'customer-service',
     'config-service',
     'discovery-service',
     'gateway-service'
-]
 
-def getServicePort(service) {
-    def ports = [
-        'account-service': '8082',
-        'customer-service': '8081',
-        'config-service': '9999',
-        'discovery-service': '8761',
-        'gateway-service': '8888'
-    ]
-    return ports[service]
-}
+]
 
 pipeline {
     agent any
@@ -80,7 +72,7 @@ pipeline {
                 script {
                     def servicesList = env.CHANGES.split(',')
 
-                    // Construction des images Docker pour les services modifiés
+                    // Construction des images Docker
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
@@ -107,22 +99,20 @@ pipeline {
                     }
 
                     def servicesList = env.CHANGES.split(',')
-
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
-                        // Analyze image for CVEs
                         powershell """
-                            # Analyse des vulnérabilités rapide
-                            docker scout quickview ${imageTag}
+                            # Aperçu rapide et général des vulnérabilités
+                            docker scout quickview ${imageTag} --no-update-check
 
                             # Analyse détaillée des CVEs
-                            docker scout cves ${imageTag} --exit-code --only-severity critical
+                            docker scout cves ${imageTag} --exit-code --only-severity critical --no-update-check
 
                             # Génération du rapport
-                            # docker scout report ${imageTag} > scout-report-${service}.txt
+                            docker scout report ${imageTag} > scout-report-${service}.txt --no-update-check
 
                             # Recommendation pour les étapes de remédiation
-                            # docker scout recommandations ${imageTag}
+                            docker scout recommandations ${imageTag} --no-update-check
                         """
                     }
                 }
