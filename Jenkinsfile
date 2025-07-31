@@ -24,6 +24,11 @@ pipeline {
         maven 'maven-3.9.10'
     }
 
+    environment {
+        DOCKER_HUB_PAT = credentials('DOCKER_PAT')
+        DOCKER_HUB_USER = 'antoinepayet'
+    }
+
     stages {
         stage('Detect Changes') {
             steps {
@@ -67,40 +72,18 @@ pipeline {
         stage('Docker Scout') {
             steps {
                 script {
-                    // powershell 'docker scout version'
+                    // Log Into Docker Hub
+                    powershell 'echo $DOCKER_HUB_PAT | login -u $DOCKER_HUB_USER --password-stdin'
 
-                    // Connexion à Docker Hub avec le PAT
-                    withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_PAT')]) {
-                        try {
-                            // Connexion à Docker
-                            powershell '''
-                                # Tentative de déconnexion préalable
-                                docker -H tcp://localhost:2375 logout
+                    def servicesList = env.CHANGES.split(',')
 
-                                # Configuration de l'authentification
-                                $env:DOCKER_PAT | docker -H tcp://localhost:2375 login --username antoinepayet --password-stdin
+                    for (service in servicesList) {
+                        def imageTag = "${service}:${env.BUILD_NUMBER}"
+                        // Analyze image for CVEs
+                        powershell "docker-scout cves ${imageTag} --exit-code --only-severity critical,high"
 
-                                # Vérifier le statut
-                                if ($LASTEXITCODE -ne 0) {
-                                    throw "Échec de la connexion Docker"
-                                }
-                            '''
-
-                            def servicesList = env.CHANGES.split(',')
-
-                            for (service in servicesList) {
-                                def imageTag = "${service}:${env.BUILD_NUMBER}"
-                                powershell """
-                                    docker -H tcp://localhost:2375 scout quickview ${imageTag} || Write-Warning "Analyse quickview échouée pour ${imageTag}"
-                                    docker -H tcp://localhost:2375 scout cves ${imageTag} --only-severity critical,high || Write-Warning "Analyse CVE échouée pour ${imageTag}"
-                                    docker -H tcp://localhost:2375 scout report ${imageTag} > scout-report-${service}.txt || Write-Warning "Génération du rapport échouée pour ${imageTag}"
-                                """
-                            }
-                        } catch (Exception e) {
-                            error "Erreur dans l'étape Docker Scout: ${e.message}"
-                        } finally {
-                            powershell 'docker -H tcp://localhost:2375 logout'
-                        }
+                        // Get recommendations for remediation steps
+                        powershell "docker-scout recommandations ${imageTag}"
                     }
                 }
             }
