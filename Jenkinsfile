@@ -113,10 +113,10 @@ pipeline {
                             docker scout cves ${imageTag} --exit-code --only-severity critical
 
                             # Génération du rapport
-                            docker scout report ${imageTag} > scout-report-${service}.txt
+                            # docker scout report ${imageTag} > scout-report-${service}.txt
 
                             # Recommendation pour les étapes de remédiation
-                            docker scout recommandations ${imageTag}
+                            # docker scout recommandations ${imageTag}
                         """
                     }
                 }
