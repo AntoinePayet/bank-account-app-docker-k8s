@@ -77,7 +77,7 @@ pipeline {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
-                            docker login -u $username -p $password
+                            docker login -u $username --password-stdin $password
                         '''
                     }
 
@@ -86,10 +86,10 @@ pipeline {
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         // Analyze image for CVEs
-                        powershell "docker-scout cves ${imageTag} --exit-code --only-severity critical,high"
+                        powershell "docker scout cves ${imageTag} --exit-code --only-severity critical,high"
 
                         // Get recommendations for remediation steps
-                        powershell "docker-scout recommandations ${imageTag}"
+                        powershell "docker scout recommandations ${imageTag}"
                     }
                 }
             }
