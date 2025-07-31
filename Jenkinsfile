@@ -73,7 +73,7 @@ pipeline {
             steps {
                 script {
                     // Log Into Docker Hub
-                    powershell 'echo $DOCKER_HUB_PAT | login -u $DOCKER_HUB_USER --password-stdin'
+                    powershell 'echo $DOCKER_HUB_PAT | docker login -u $DOCKER_HUB_USER --password-stdin'
 
                     def servicesList = env.CHANGES.split(',')
 
