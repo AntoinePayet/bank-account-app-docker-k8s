@@ -77,7 +77,7 @@ pipeline {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
-                            docker login -u $username - $password
+                            docker login -u $username -p $password
                         '''
                     }
 
