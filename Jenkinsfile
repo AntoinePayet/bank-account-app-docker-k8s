@@ -78,6 +78,9 @@ pipeline {
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
                             docker login -u $username -p $password
+
+                            # Installation de Docker Scout via Docker CLI
+                            docker extension install docker/scout-extension
                         '''
                     }
 
@@ -86,10 +89,19 @@ pipeline {
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         // Analyze image for CVEs
-                        powershell "docker scout cves ${imageTag} --exit-code --only-severity critical,high"
+                        powershell """
+                            # Analyse des vulnérabilités rapide
+                            docker scout quickview ${imageTag}
 
-                        // Get recommendations for remediation steps
-                        powershell "docker scout recommandations ${imageTag}"
+                            # Analyse détaillée des CVEs
+                            docker scout cves ${imageTag} --exit-code --only-severity critical,high
+
+                            # Génération du rapport
+                            docker scout report ${imageTag} > scout-report-${service}.txt
+
+                            // Recommendation pour les étapes de remédiation
+                            docker scout recommandations ${imageTag}
+                        """
                     }
                 }
             }
