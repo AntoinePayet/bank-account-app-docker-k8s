@@ -72,12 +72,13 @@ pipeline {
         stage('Docker Scout') {
             steps {
                 script {
-                    // Connexion à Docker Hub
+                    // Connexion à Docker Hub de manière sécurisée
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
-                        powershell """
-                            `$env:DOCKER_PASSWORD=\"${DOCKER_HUB_PAT}\"
-                            docker login -u ${DOCKER_HUB_USER} -p `$env:DOCKER_PASSWORD
-                        """
+                        powershell '''
+                            $password = $env:DOCKER_HUB_PAT
+                            $username = $env:DOCKER_HUB_USER
+                            docker login -u $username -p $password
+                        '''
                     }
 
                     def servicesList = env.CHANGES.split(',')
