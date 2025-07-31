@@ -63,7 +63,7 @@ pipeline {
                             if (service == 'angular-front-end') {
                                 powershell '''
                                     npm install
-                                    npm install @angular/cli
+                                    npm install @angular/cli@latest
                                     npm run build
                                 '''
                             } else {
@@ -111,16 +111,16 @@ pipeline {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
                             # Aperçu rapide et général des vulnérabilités
-                            docker scout quickview ${imageTag} --no-update-check
+                            docker scout quickview ${imageTag}
 
                             # Analyse détaillée des CVEs
-                            docker scout cves ${imageTag} --exit-code --only-severity critical --no-update-check
+                            docker scout cves ${imageTag} --exit-code --only-severity critical
 
                             # Génération du rapport
-                            docker scout report ${imageTag} > scout-report-${service}.txt --no-update-check
+                            docker scout report ${imageTag} > scout-report-${service}.txt
 
                             # Recommendation pour les étapes de remédiation
-                            docker scout recommandations ${imageTag} --no-update-check
+                            docker scout recommandations ${imageTag}
                         """
                     }
                 }
