@@ -61,7 +61,7 @@ pipeline {
                     for (service in servicesList) {
                         dir(service) {
                             if (service == 'angular-front-end') {
-                                powershell 'npm run build'
+                                powershell 'npx ng build'
                             } else {
                                 powershell 'mvn -B clean package -DskipTests'
                             }
