@@ -69,6 +69,22 @@ pipeline {
             }
         }
 
+        stage('Build images') {
+            steps {
+                script {
+                    def servicesList = env.CHANGES.split(',')
+
+                    // Construction des images Docker pour les services modifiés
+                    for (service in servicesList) {
+                        dir(service) {
+                            def imageTag = "${service}:${env.BUILD_NUMBER}"
+                            powershell "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Docker Scout') {
             steps {
                 script {
@@ -107,18 +123,14 @@ pipeline {
             }
         }
 
-        stage('Build and Deploy with Docker Compose') {
+        stage('Deploy with Docker Compose') {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
 
-                    // Construction des images Docker pour les services modifiés
+                    // Mise à jour des tags d'images dans docker-compose.yml
                     for (service in servicesList) {
                         dir(service) {
-                            def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            powershell "docker -H tcp://localhost:2375 build -t ${imageTag} ."
-
-                            // Mise à jour du tag d'image dans docker-compose.yml
                             powershell """
                                 powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
                             """
