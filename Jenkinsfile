@@ -1,7 +1,7 @@
 // Recherche les dossiers dans le projet
 def microservices = [
     'account-service',
-    'angular-front-end'
+    'angular-front-end',
     'customer-service',
     'config-service',
     'discovery-service',
