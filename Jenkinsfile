@@ -30,6 +30,12 @@ pipeline {
     }
 
     stages {
+        // stage('Clean Workspace') {
+        //     steps {
+        //         cleanWs()
+        //     }
+        // }
+
         stage('Detect Changes') {
             steps {
                 script {
@@ -131,6 +137,7 @@ pipeline {
                     // Mise à jour des tags d'images dans docker-compose.yml
                     for (service in servicesList) {
                         dir(service) {
+                            def imageTag = "${service}:${env.BUILD_NUMBER}"
                             powershell """
                                 powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
                             """
