@@ -62,7 +62,7 @@ pipeline {
                         dir(service) {
                             if (service == 'angular-front-end') {
                                 powershell '''
-                                    npm install
+                                    npm install -g @angular/cli@latest
                                     ng build
                                 '''
                             } else {
