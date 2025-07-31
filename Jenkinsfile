@@ -60,7 +60,11 @@ pipeline {
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
-                            powershell 'mvn -B clean package -DskipTests'
+                            if (service == 'angular-front-end') {
+                                powershell 'ng build'
+                            } else {
+                                powershell 'mvn -B clean package -DskipTests'
+                            }
                         }
                     }
                 }
