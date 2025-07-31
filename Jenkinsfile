@@ -62,13 +62,8 @@ pipeline {
                         dir(service) {
                             if (service == 'angular-front-end') {
                                 powershell '''
-                                    $ngPath = "node_module\\.bin\\ng"
-                                    if (Test-Path $ngPath) {
-                                        .\\$ngPath build
-                                    } else {
-                                        Write-Error "Angular CLI not found in node_module"
-                                        exit 1
-                                    }
+                                    npm install
+                                    ng build
                                 '''
                             } else {
                                 powershell 'mvn -B clean package -DskipTests'
