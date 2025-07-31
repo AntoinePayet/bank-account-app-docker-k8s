@@ -62,8 +62,9 @@ pipeline {
                         dir(service) {
                             if (service == 'angular-front-end') {
                                 powershell '''
-                                    npm install -g @angular/cli@latest
-                                    ng build
+                                    npm install
+                                    npm install @angular/cli
+                                    npm run build
                                 '''
                             } else {
                                 powershell 'mvn -B clean package -DskipTests'
