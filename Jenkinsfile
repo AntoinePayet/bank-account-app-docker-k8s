@@ -120,7 +120,7 @@ pipeline {
                             docker scout report ${imageTag} > scout-report-${service}.txt
 
                             # Recommendation pour les étapes de remédiation
-                            docker scout recommandations ${imageTag}
+                            docker scout recommendations ${imageTag}
                         """
                     }
                 }
