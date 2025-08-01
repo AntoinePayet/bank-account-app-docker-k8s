@@ -1,4 +1,4 @@
-// Recherche les dossiers dans le projet
+// Liste des microservices à gérer dans le pipeline
 def microservices = [
     'account-service',
     'angular-front-end',
@@ -11,11 +11,11 @@ def microservices = [
 
 pipeline {
     agent any
-
     tools {
         maven 'maven-3.9.10'
     }
 
+    // Variables d'environnement globales
     environment {
         DOCKER_HUB_PAT = credentials('DOCKER_PAT')
         DOCKER_HUB_USER = 'antoinepayet'
@@ -33,6 +33,7 @@ pipeline {
                 script {
                     def changedServices = []
                     for (service in microservices) {
+                        // Vérification des fichiers modifiés entre le commit actuel et le précédent
                         def changes = powershell(
                             script: "git diff --name-only HEAD^..HEAD ${service}/",
                             returnStdout: true
@@ -43,12 +44,12 @@ pipeline {
                         }
                     }
 
+                    // Si aucun service n'a été modifié, on construit tous les services
                     if (changedServices.isEmpty()) {
-                        // Si aucun changement spécifique, construire tous les services
                         changedServices = microservices
                     }
 
-                    // Stocker la liste comme une chaîne séparée par des virgules dans env.CHANGES
+                    // Stockage des services modifiés dans une variable d'environnement
                     env.CHANGES = changedServices.join(',')
                 }
             }
@@ -60,6 +61,7 @@ pipeline {
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
+                            // Compilation différente selon le type de projet
                             if (service == 'angular-front-end') {
                                 powershell '''
                                     npm install
@@ -79,7 +81,6 @@ pipeline {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
-
                     // Construction des images Docker
                     for (service in servicesList) {
                         dir(service) {
@@ -94,7 +95,7 @@ pipeline {
         stage('Docker Scout') {
             steps {
                 script {
-                    // Connexion à Docker Hub de manière sécurisée
+                    // Authentification Docker Hub pour utiliser Docker Scout
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
@@ -106,6 +107,7 @@ pipeline {
                         '''
                     }
 
+                    // Analyse des dépendances pour chaque image
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
@@ -114,7 +116,7 @@ pipeline {
                             docker scout quickview ${imageTag}
 
                             # Analyse détaillée des CVEs
-                            docker scout cves ${imageTag} --exit-code --only-severity critical
+                            docker scout cves ${imageTag} --exit-code --only-severity critical,high
 
                             # Génération du rapport
                             docker scout report ${imageTag} > scout-report-${service}.txt
@@ -131,8 +133,7 @@ pipeline {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
-
-                    // Mise à jour des tags d'images dans docker-compose.yml
+                    // Mise à jour des versions d'images (tag) dans le fichier docker-compose
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
