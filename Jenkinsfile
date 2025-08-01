@@ -122,7 +122,7 @@ pipeline {
                             docker scout quickview ${imageTag}
 
                             # Analyse détaillée des CVEs
-                            docker scout cves ${imageTag} --exit-code --only-severity critical,high,medium,low > scout-report/${service}.txt
+                            docker scout cves ${imageTag} --exit-code --only-severity critical,high > scout-report/${service}.txt
 
                             # Recommendation pour les étapes de remédiation
                             docker scout recommendations ${imageTag} >> scout-report/${service}.txt
