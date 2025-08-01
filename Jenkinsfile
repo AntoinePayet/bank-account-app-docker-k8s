@@ -122,13 +122,16 @@ pipeline {
                             docker scout quickview ${imageTag}
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
-                            docker scout cves ${imageTag} --only-severity critical,high > scout-report/${service}.txt
+                            docker scout cves ${imageTag} --exit-code --only-severity critical,high > scout-report/${service}.txt
 
                             # Ajout des recommandations au rapport
                             docker scout recommendations ${imageTag} --only-severity critical,high >> scout-report/${service}.txt
 
-                            #Vérification spécifique des vulnérabilités critiques (pour arrêter le pipeline)
-                            docker scout cves ${imageTag} --exit-code --only-severity critical,high || (echo "? Vulnérabilités critiques détectées dans ${imageTag}" && exit 1)
+                            # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
+                            if ($LASTEXITCODE -ne 0) {
+                                Write-Output "? Vulnérabilités critiques détectées dans ${imageTag}"
+                                exit 1
+                            }
                         """
                     }
                 }
@@ -169,7 +172,7 @@ pipeline {
                 Pipeline : ${jobName}
                 Build : #${buildNumber}
                 Status : ÉCHEC
-                Raison : Des vulnérabilités critiques ont été détectées
+                Raison : Des vulnérabilités critiques ou élevées ont été détectées
                 URL du build : ${buildUrl}
 
                 Veuillez consulter les rapports de sécurité dans le dossier 'scout-report' pour plus de détails.
