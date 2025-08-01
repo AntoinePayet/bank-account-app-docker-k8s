@@ -101,10 +101,16 @@ pipeline {
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
                             docker login -u $username -p $password
-
-                            # Installation de Docker Scout via Docker CLI
                             docker extension install docker/scout-extension
                         '''
+
+                        // Création du dossier scout-report s'il n'existe pas
+                        powershell '''
+                            if (!(Test-Path "scout-report")) {
+                                New-Item -ItemType Directory -Force -Path "scout-report"
+                            }
+                        '''
+
                     }
 
                     // Analyse des dépendances pour chaque image
@@ -119,7 +125,7 @@ pipeline {
                             docker scout cves ${imageTag} --exit-code --only-severity critical,high
 
                             # Génération du rapport
-                            docker scout report ${imageTag} > scout-report-${service}.txt
+                            docker scout report ${imageTag} > scout-report/${service}.txt
 
                             # Recommendation pour les étapes de remédiation
                             docker scout recommendations ${imageTag}
