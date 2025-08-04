@@ -33,6 +33,7 @@ pipeline {
             steps {
                 script {
                     def changedServices = microservices
+                    env.CHANGES = changedServices.join(',')
                     echo "Workspace vide détecté : tous les services seront déployés"
 //                     // Vérifier si le workspace est vide après le checkout
 //                     def workspaceEmpty = powershell(
