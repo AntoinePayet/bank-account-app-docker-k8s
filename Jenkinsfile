@@ -25,6 +25,7 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 cleanWs()
+                checkout scm
             }
         }
 
