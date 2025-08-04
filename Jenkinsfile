@@ -32,25 +32,56 @@ pipeline {
             steps {
                 script {
                     def changedServices = []
-                    for (service in microservices) {
-                        // Vérification des fichiers modifiés entre le commit actuel et le précédent
-                        def changes = powershell(
-                            script: "git diff --name-only HEAD^..HEAD ${service}/",
-                            returnStdout: true
-                        ).trim()
+                    // Vérifier si le workspace est vide après le checkout
+                    def workspaceEmpty = powershell(
+                        script: """
+                            if (-not (Test-Path -Path '*')) {
+                                exit 1
+                            } else {
+                                exit 0
+                            }
+                            """,
+                        returnStatus: true
+                    )
 
-                        if (changes) {
-                            changedServices.add(service)
-                        }
-                    }
-
-                    // Si aucun service n'a été modifié, on construit tous les services
-                    if (changedServices.isEmpty()) {
+                    if (workspaceEmpty) {
+                        // Si le workspace est vide, on déploie tout
                         changedServices = microservices
+                        echo "Workspace vide détecté : tous les services seront déployés"
+                    } else {
+                        // Récupérer le hash du dernier build réussi
+                        def lastSuccessfulCommit = ""
+                        def currentBuild = currentBuild.previousSuccessfulBuild
+                        if (currentBuild) {
+                            lastSuccessfulCommit = currentBuild.getEnvironment().GIT_COMMIT
+                        }
+
+                        for (service in microservices) {
+                            if (!lastSuccessfulCommit) {
+                                // Première exécution ou pas de build précédent réussi
+                                changedServices.add(service)
+                            } else {
+                                // Vérifier les modifications entre le dernier build réussi et maintenant
+                                def changes = powershell(
+                                    script: "git diff --name-only ${lastSuccessfulCommit}..HEAD ${service}/",
+                                    returnStdout: true
+                                ).trim()
+
+                                if (changes) {
+                                    changedServices.add(service)
+                                }
+                            }
+                        }
+                        // Si aucun service n'a été modifié, on construit tous les services
+                        if (changedServices.isEmpty()) {
+                            changedServices = microservices
+                            echo "Aucun changement détecté : tous les services seront déployés"
+                        }
                     }
 
                     // Stockage des services modifiés dans une variable d'environnement
                     env.CHANGES = changedServices.join(',')
+                    echo "Services à déployés : ${env.CHANGES}"
                 }
             }
         }
