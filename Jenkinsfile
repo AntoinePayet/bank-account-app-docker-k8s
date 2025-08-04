@@ -22,11 +22,11 @@ pipeline {
     }
 
     stages {
-        // stage('Clean Workspace') {
-        //     steps {
-        //         cleanWs()
-        //     }
-        // }
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
 
         stage('Detect Changes') {
             steps {
@@ -169,7 +169,7 @@ pipeline {
                 def jobName = env.JOB_NAME
                 def buildNumber = env.BUILD_NUMBER
 
-                echo """?? ALERTE DE SÉCURITÉ ??
+                echo """/!\\ ALERTE DE SÉCURITÉ /!\\
                 Pipeline : ${jobName}
                 Build : #${buildNumber}
                 Status : ÉCHEC
