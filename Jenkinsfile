@@ -32,7 +32,8 @@ pipeline {
         stage('Detect Changes') {
             steps {
                 script {
-                    def changedServices = []
+                    def changedServices = microservices
+                    echo "Workspace vide détecté : tous les services seront déployés"
 //                     // Vérifier si le workspace est vide après le checkout
 //                     def workspaceEmpty = powershell(
 //                         script: """
@@ -47,7 +48,7 @@ pipeline {
 //
 //                     if (workspaceEmpty) {
 //                         // Si le workspace est vide, on déploie tout
-                        changedServices = microservices
+//                         changedServices = microservices
 //                         echo "Workspace vide détecté : tous les services seront déployés"
 //                     } else {
 //                         // Récupérer le hash du dernier build réussi
