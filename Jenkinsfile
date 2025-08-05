@@ -22,12 +22,12 @@ pipeline {
     }
 
     stages {
-//         stage('Clean Workspace') {
-//             steps {
-//                 cleanWs()
-//                 checkout scm
-//             }
-//         }
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+                checkout scm
+            }
+        }
 
         stage('Detect Changes') {
             steps {
