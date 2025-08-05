@@ -57,27 +57,27 @@ pipeline {
             }
         }
 
-        stage('Project compilation') {
-            steps {
-                script {
-                    def servicesList = env.CHANGES.split(',')
-                    for (service in servicesList) {
-                        dir(service) {
-                            // Compilation différente selon le type de projet
-                            if (service == 'angular-front-end') {
-                                powershell '''
-                                    npm install
-                                    npm install @angular/cli@latest
-                                    npm run build
-                                '''
-                            } else {
-                                powershell 'mvn -B clean package -DskipTests'
-                            }
-                        }
-                    }
-                }
-            }
-        }
+//         stage('Project compilation') {
+//             steps {
+//                 script {
+//                     def servicesList = env.CHANGES.split(',')
+//                     for (service in servicesList) {
+//                         dir(service) {
+//                             // Compilation différente selon le type de projet
+//                             if (service == 'angular-front-end') {
+//                                 powershell '''
+//                                     npm install
+//                                     npm install @angular/cli@latest
+//                                     npm run build
+//                                 '''
+//                             } else {
+//                                 powershell 'mvn -B clean package -DskipTests'
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         }
 
         stage('Build images') {
             steps {
@@ -130,8 +130,10 @@ pipeline {
                             docker scout recommendations ${imageTag} --only-severity critical,high >> scout-report/${service}.txt
 
                             # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
-                            docker scout cves ${imageTag} --exit-code --only-severity critical,high
-                            if ($LASTEXITCODE -ne 0) {
+                            $result = docker scout cves ${imageTag} --exit-code --only-severity critical,high
+                            if ($?) {
+                                Write-Output "Aucune vulnérabilité critiques détectées dans ${imageTag}"
+                            } else {
                                 Write-Output "[ERROR] Vulnérabilités critiques détectées dans ${imageTag}"
                                 exit 1
                             }
