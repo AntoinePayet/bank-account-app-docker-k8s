@@ -22,13 +22,6 @@ pipeline {
     }
 
     stages {
-        stage('Clean Workspace') {
-            steps {
-                cleanWs()
-                checkout scm
-            }
-        }
-
         stage('Detect Changes') {
             steps {
                 script {
@@ -135,21 +128,27 @@ pipeline {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
-                    // Mise à jour des versions d'images (tag) dans le fichier docker-compose
-                    for (service in servicesList) {
-                        dir(service) {
+
+                    // Si servicesList contient tous les microservices, on fait un déploiement complet
+                    if (servicesList.sort() == microservices.sort()) {
+                        echo "Déploiement complet de tous les services"
+                        powershell '''
+                            docker compose -H tcp://localhost:2375 down
+                            docker compose -H tcp://localhost:2375 up -d --build
+                        '''
+                    } else {
+                        echo "Déploiement sélectif des services modifiés : ${servicesList}"
+
+                        // Mise à jour des tags dans le fichier docker-compose et redémarrage des services modifiés
+                        for (service in servicesList) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
                             powershell """
-                                powershell -Command "(Get-Content ..\\docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content ..\\docker-compose.yml"
+                                powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml"
+                                docker compose -H tcp://localhost:2375 stop ${service}
+                                docker compose -H tcp://localhost:2375 up -d --build ${service}
                             """
                         }
                     }
-
-                    // Arrêt des services existants
-                    powershell 'docker-compose -H tcp://localhost:2375 down'
-
-                    // Démarrage des services avec docker-compose
-                    powershell 'docker-compose -H tcp://localhost:2375 up -d --build'
                 }
             }
         }
