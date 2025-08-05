@@ -126,9 +126,9 @@ pipeline {
                             # Analyse détaillée des CVEs et ajout dans un rapport
                             docker scout cves ${imageTag} --exit-code --only-severity critical > scout-report/${service}.txt
 
-                            # Ajout des recommandations au rapport
-                            docker scout recommendations ${imageTag} --only-severity critical >> scout-report/${service}.txt
                         """
+//                             # Ajout des recommandations au rapport
+//                             docker scout recommendations ${imageTag} --only-severity critical >> scout-report/${service}.txt
                     }
                 }
             }
