@@ -121,14 +121,11 @@ pipeline {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
                             # Aperçu rapide et général des vulnérabilités
-                            docker scout quickview ${imageTag}
+                            docker scout quickview ${imageTag} > scout-report/${service}.txt
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
-                            docker scout cves ${imageTag} --exit-code --only-severity critical > scout-report/${service}.txt
-
+                            docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}.txt
                         """
-//                             # Ajout des recommandations au rapport
-//                             docker scout recommendations ${imageTag} --only-severity critical >> scout-report/${service}.txt
                     }
                 }
             }
@@ -164,19 +161,28 @@ pipeline {
                 def jobName = env.JOB_NAME
                 def buildNumber = env.BUILD_NUMBER
 
-                echo """/!\\ ALERTE DE SÉCURITÉ /!\\
-                Pipeline : ${jobName}
-                Build : #${buildNumber}
-                Status : ÉCHEC
-                Raison : Des vulnérabilités critiques ont été détectées
-                URL du build : ${buildUrl}
+                if (currentBuild.result == 'FAILURE' && currentBuild.rawBuild.getLog(1000).join('\n').contains('docker scout cves')) {
+                    echo """/!\\ ALERTE DE SÉCURITÉ /!\\
+                    Pipeline : ${jobName}
+                    Build : #${buildNumber}
+                    Status : ÉCHEC
+                    Raison : Des vulnérabilités critiques ont été détectées
+                    URL du build : ${buildUrl}
 
-                Veuillez consulter les rapports de sécurité dans le dossier 'scout-report' pour plus de détails.
-                """
+                    Veuillez consulter les rapports de sécurité dans le dossier 'scout-report' pour plus de détails.
+                    """
+                } else {
+                    echo """Pipeline : ${jobName}
+                    Build : #${buildNumber}
+                    Status : ÉCHEC
+                    Raison : Erreur technique dans le pipeline
+                    URL du build : ${buildUrl}
+                    """
+                }
             }
         }
         success {
-            echo "Pipeline exécuté avec succès - Aucune vulnérabilité critique détectée"
+            echo "Pipeline exécuté avec succès"
         }
     }
 }
