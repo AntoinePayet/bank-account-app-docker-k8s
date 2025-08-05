@@ -130,10 +130,15 @@ pipeline {
                             docker scout recommendations ${imageTag} --only-severity critical,high >> scout-report/${service}.txt
                         """
 
+                        def exitCode = powershell(
+                            script: "docker scout cves ${imageTag} --exit-code --only-severity critical,high",
+                            returnStatus: true
+                        )
+
+//                             # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
+//                             docker scout cves ${imageTag} --exit-code --only-severity critical,high
                         powershell """
-                            # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
-                            docker scout cves ${imageTag} --exit-code --only-severity critical,high
-                            if (`$?) {
+                            if (${exitCode} -eq 0) {
                                 Write-Output "Aucune vulnérabilité critiques détectées dans ${imageTag}"
                             } else {
                                 Write-Output "[ERROR] Vulnérabilités critiques détectées dans ${imageTag}"
