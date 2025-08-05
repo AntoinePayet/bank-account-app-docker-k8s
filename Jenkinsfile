@@ -121,16 +121,16 @@ pipeline {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
                             # Aperçu rapide et général des vulnérabilités
-                            docker scout quickview ${imageTag}
+                            docker scout quickview '${imageTag}'
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
-                            docker scout cves ${imageTag} --exit-code --only-severity critical,high > scout-report/${service}.txt
+                            docker scout cves '${imageTag}' --exit-code --only-severity critical,high > scout-report/${service}.txt
 
                             # Ajout des recommandations au rapport
-                            docker scout recommendations ${imageTag} --only-severity critical,high >> scout-report/${service}.txt
+                            docker scout recommendations '${imageTag}' --only-severity critical,high >> scout-report/${service}.txt
 
                             # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
-                            $result = docker scout cves ${imageTag} --exit-code --only-severity critical,high
+                            $result = docker scout cves '${imageTag}' --exit-code --only-severity critical,high
                             if ($?) {
                                 Write-Output "Aucune vulnérabilité critiques détectées dans ${imageTag}"
                             } else {
