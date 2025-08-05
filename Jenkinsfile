@@ -130,16 +130,16 @@ pipeline {
                             docker scout recommendations ${imageTag} --only-severity critical,high >> scout-report/${service}.txt
                         """
 
-//                         powershell """
-//                             # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
-//                             docker scout cves ${imageTag} --exit-code --only-severity critical,high
-//                             if ($?) {
-//                                 Write-Output "Aucune vulnérabilité critiques détectées dans ${imageTag}"
-//                             } else {
-//                                 Write-Output "[ERROR] Vulnérabilités critiques détectées dans ${imageTag}"
-//                                 exit 1
-//                             }
-//                         """
+                        powershell """
+                            # Arrêt du pipeline si une vulnérabilités critique ou élevée est détectée
+                            docker scout cves ${imageTag} --exit-code --only-severity critical,high
+                            if (`$?) {
+                                Write-Output "Aucune vulnérabilité critiques détectées dans ${imageTag}"
+                            } else {
+                                Write-Output "[ERROR] Vulnérabilités critiques détectées dans ${imageTag}"
+                                exit 1
+                            }
+                        """
                     }
                 }
             }
