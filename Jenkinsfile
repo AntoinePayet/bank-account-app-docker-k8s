@@ -90,6 +90,12 @@ pipeline {
         stage('Docker Scout') {
             steps {
                 script {
+                    powershell '''
+                        if (Test-Path "C:\\WINDOWS\\SystemTemp\\docker-scout") {
+                            Remove-Item -Path "C:\\WINDOWS\\SystemTemp\\docker-scout" -Recurse -Force -ErrorAction SilentlyContinue
+                        }
+                    '''
+
                     // Authentification Docker Hub pour utiliser Docker Scout
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
                         powershell '''
@@ -128,6 +134,12 @@ pipeline {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
+                        def imageTag = "${service}:${env.BUILD_NUMBER}"
+                        powershell """
+                            powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml"
+                        """
+                    }
 
                     // Si servicesList contient tous les microservices, on fait un déploiement complet
                     if (servicesList.sort() == microservices.sort()) {
@@ -138,12 +150,9 @@ pipeline {
                         '''
                     } else {
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
-
                         // Mise à jour des tags dans le fichier docker-compose et redémarrage des services modifiés
                         for (service in servicesList) {
-                            def imageTag = "${service}:${env.BUILD_NUMBER}"
                             powershell """
-                                powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml"
                                 docker compose -H tcp://localhost:2375 stop ${service}
                                 docker compose -H tcp://localhost:2375 up -d --build ${service}
                             """
