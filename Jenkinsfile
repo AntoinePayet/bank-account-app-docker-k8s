@@ -51,27 +51,27 @@ pipeline {
             }
         }
 
-//         stage('Project compilation') {
-//             steps {
-//                 script {
-//                     def servicesList = env.CHANGES.split(',')
-//                     for (service in servicesList) {
-//                         dir(service) {
-//                             // Compilation différente selon le type de projet
-//                             if (service == 'angular-front-end') {
-//                                 powershell '''
-//                                     npm install
-//                                     npm install @angular/cli@latest
-//                                     npm run build
-//                                 '''
-//                             } else {
-//                                 powershell 'mvn -B clean package -DskipTests'
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         }
+        stage('Project compilation') {
+            steps {
+                script {
+                    def servicesList = env.CHANGES.split(',')
+                    for (service in servicesList) {
+                        dir(service) {
+                            // Compilation différente selon le type de projet
+                            if (service == 'angular-front-end') {
+                                powershell '''
+                                    npm install
+                                    npm install @angular/cli@latest
+                                    npm run build
+                                '''
+                            } else {
+                                powershell 'mvn -B clean package -DskipTests'
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Build images') {
             steps {
