@@ -19,6 +19,7 @@ pipeline {
     environment {
         DOCKER_HUB_PAT = credentials('DOCKER_PAT')
         DOCKER_HUB_USER = 'antoinepayet'
+        DOCKER_HOST = "tcp^://localhost:2375"
     }
 
     stages {
@@ -80,7 +81,7 @@ pipeline {
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            powershell "docker -H tcp://localhost:2375 build -t ${imageTag} ."
+                            powershell "docker build -t ${imageTag} ."
                         }
                     }
                 }
@@ -145,16 +146,16 @@ pipeline {
                     if (servicesList.sort() == microservices.sort()) {
                         echo "Déploiement complet de tous les services"
                         powershell '''
-                            docker compose -H tcp://localhost:2375 down
-                            docker compose -H tcp://localhost:2375 up -d --build
+                            docker compose down
+                            docker compose up -d --build
                         '''
                     } else {
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
                         // Mise à jour des tags dans le fichier docker-compose et redémarrage des services modifiés
                         for (service in servicesList) {
                             powershell """
-                                docker compose -H tcp://localhost:2375 stop ${service}
-                                docker compose -H tcp://localhost:2375 up -d --build ${service}
+                                docker compose stop ${service}
+                                docker compose up -d --build ${service}
                             """
                         }
                     }
