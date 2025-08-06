@@ -117,7 +117,6 @@ pipeline {
             }
         }
 
-
         stage('Docker Scout') {
             steps {
                 script {
@@ -180,6 +179,7 @@ pipeline {
             }
         }
     }
+
     post {
         failure {
             script {
