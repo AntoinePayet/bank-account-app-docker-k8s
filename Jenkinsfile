@@ -147,7 +147,7 @@ pipeline {
                         echo "Déploiement complet de tous les services"
                         powershell '''
                             docker compose down
-                            docker compose up -d --build
+                            docker compose up
                         '''
                     } else {
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
@@ -155,7 +155,7 @@ pipeline {
                         for (service in servicesList) {
                             powershell """
                                 docker compose stop ${service}
-                                docker compose up -d --build ${service}
+                                docker compose up ${service}
                             """
                         }
                     }
