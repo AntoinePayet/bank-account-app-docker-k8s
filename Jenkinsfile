@@ -197,8 +197,8 @@ pipeline {
                     """
                 } else if (buildLog.toLowerCase().contains('error logging in') ||
                            buildLog.contains('unauthorized') ||
-                           buildLog.contains('authentification required' ||
-                           buildLog.contains('access denied' ||
+                           buildLog.contains('authentification required') ||
+                           buildLog.contains('access denied') ||
                            buildLog.contains('permission denied')) {
                     echo """/!\\ ERREUR D'AUTHENTIFICATION DOCKER /!\\
                     Pipeline : ${jobName}
