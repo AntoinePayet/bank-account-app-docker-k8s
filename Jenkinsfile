@@ -19,7 +19,7 @@ pipeline {
     environment {
         DOCKER_HUB_PAT = credentials('DOCKER_PAT')
         DOCKER_HUB_USER = 'antoinepayet'
-        DOCKER_HOST = "tcp^://localhost:2375"
+        DOCKER_HOST = 'tcp://localhost:2375'
     }
 
     stages {
