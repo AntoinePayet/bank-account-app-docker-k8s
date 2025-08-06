@@ -20,9 +20,22 @@ pipeline {
         DOCKER_HUB_PAT = credentials('DOCKER_PAT')
         DOCKER_HUB_USER = 'antoinepayet'
         DOCKER_HOST = 'tcp://localhost:2375'
+        DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
     }
 
     stages {
+        stage('Preparing the environment') {
+            steps {
+                script {
+                    powershell '''
+                        if (Test-Path $env:DOCKER_SCOUT_TEMP_DIR) {
+                            Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
+                        }
+                    '''
+                }
+            }
+        }
+
         stage('Detect Changes') {
             steps {
                 script {
@@ -88,32 +101,29 @@ pipeline {
             }
         }
 
-        stage('Docker Scout') {
+        stage('Docker Authentification') {
             steps {
                 script {
-                    powershell '''
-                        if (Test-Path "C:\\WINDOWS\\SystemTemp\\docker-scout") {
-                            Remove-Item -Path "C:\\WINDOWS\\SystemTemp\\docker-scout" -Recurse -Force -ErrorAction SilentlyContinue
-                        }
-                    '''
-
                     // Authentification Docker Hub pour utiliser Docker Scout
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
                         powershell '''
-                            $password = $env:DOCKER_HUB_PAT
-                            $username = $env:DOCKER_HUB_USER
-                            docker login -u $username -p $password
-                            docker extension install docker/scout-extension
+                            $env:DOCKER_HUB_PAT | docker login -u $env:DOCKER_HUB_USER --password-stdin
                         '''
-
-                        // Création du dossier scout-report s'il n'existe pas
-                        powershell '''
-                            if (!(Test-Path "scout-report")) {
-                                New-Item -ItemType Directory -Force -Path "scout-report"
-                            }
-                        '''
-
                     }
+                }
+            }
+        }
+
+
+        stage('Docker Scout') {
+            steps {
+                script {
+                    // Création du dossier pour les rapport s'il n'existe pas
+                    powershell '''
+                        if (!(Test-Path "scout-report")) {
+                            New-Item -ItemType Directory -Force -Path "scout-report"
+                        }
+                    '''
 
                     // Analyse des dépendances pour chaque image
                     def servicesList = env.CHANGES.split(',')
@@ -125,6 +135,11 @@ pipeline {
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
                             docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}.txt
+
+                            # Nettoyage des fichiers temporaires après chaque analyse
+                            if (Test-Path "$env:DOCKER_SCOUT_TEMP_DIR") {
+                                Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
+                            }
                         """
                     }
                 }
@@ -141,7 +156,6 @@ pipeline {
                             powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml"
                         """
                     }
-
                     // Si servicesList contient tous les microservices, on fait un déploiement complet
                     if (servicesList.sort() == microservices.sort()) {
                         echo "Déploiement complet de tous les services"
@@ -169,8 +183,9 @@ pipeline {
                 def buildUrl = env.BUILD_URL
                 def jobName = env.JOB_NAME
                 def buildNumber = env.BUILD_NUMBER
+                def buildLog = currentBuild.rawBuild.getLog(2000).join('\n')
 
-                if (currentBuild.result == 'FAILURE' && currentBuild.rawBuild.getLog(1000).join('\n').contains('docker scout cves')) {
+                if (buildLog.contains('docker scout cves')) {
                     echo """/!\\ ALERTE DE SÉCURITÉ /!\\
                     Pipeline : ${jobName}
                     Build : #${buildNumber}
@@ -180,6 +195,24 @@ pipeline {
 
                     Veuillez consulter les rapports de sécurité dans le dossier 'scout-report' pour plus de détails.
                     """
+                } else if (buildLog.toLowerCase().contains('error logging in') ||
+                           buildLog.contains('unauthorized') ||
+                           buildLog.contains('authentification required' ||
+                           buildLog.contains('access denied' ||
+                           buildLog.contains('permission denied')) {
+                    echo """/!\\ ERREUR D'AUTHENTIFICATION DOCKER /!\\
+                    Pipeline : ${jobName}
+                    Build : #${buildNumber}
+                    Status : ÉCHEC
+                    Raison : Des vulnérabilités critiques ont été détectées
+                    URL du build : ${buildUrl}
+
+                    Actions recommandées :
+                    1. Vérifier que le credential 'DOCKER_PAT' est correctement configuré dans Jenkins
+                    2. Vérifier que le token Docker Hub n'a pas expiré
+                    3. Vérifier que l'utilisateur '${env.DOCKER_HUB_USER}' a les permissions necéssaires
+                    4. Vérifier que Docker Desktop est bien démarré et accessible
+                    """
                 } else {
                     echo """Pipeline : ${jobName}
                     Build : #${buildNumber}
@@ -188,6 +221,23 @@ pipeline {
                     URL du build : ${buildUrl}
                     """
                 }
+            }
+        }
+        always {
+            script {
+                // Nettoyage final des fichiers temporaires
+                powershell '''
+                    if (Test-Path $env:DOCKER_SCOUT_TEMP_DIR) {
+                        try {
+                            Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction Stop
+                            Write-Host "Nettoyage des fichiers temporaires Docker Scout effectué avec succès"
+                        } catch {
+                            Write-Warning "Impossible de nettoyer complètement $env:DOCKER_SCOUT_TEMP_DIR : $($_.Exception.Message)"
+                        }
+                    } else {
+                        Write-Host "Aucun fichier temporaire Docker Scout à nettoyer"
+                    }
+                '''
             }
         }
         success {
