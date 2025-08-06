@@ -107,7 +107,10 @@ pipeline {
                     // Authentification Docker Hub pour utiliser Docker Scout
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
                         powershell '''
-                            $env:DOCKER_HUB_PAT | docker login -u $env:DOCKER_HUB_USER --password-stdin
+                            $password = $env:DOCKER_HUB_PAT
+                            $username = $env:DOCKER_HUB_USER
+                            docker login -u $username -p $password
+                            docker extension install docker/scout-extension
                         '''
                     }
                 }
