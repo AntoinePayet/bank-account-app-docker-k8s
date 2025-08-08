@@ -6,7 +6,6 @@ def microservices = [
     'config-service',
     'discovery-service',
     'gateway-service'
-
 ]
 
 pipeline {
@@ -15,18 +14,24 @@ pipeline {
         maven 'maven-3.9.10'
     }
 
-    // Variables d'environnement globales
+    // Variables d'environnement globales accessibles dans tout le pipeline
     environment {
+        // Jeton d'accès Docker Hub stocké dans Jenkins Crédentials
         DOCKER_HUB_PAT = credentials('DOCKER_PAT')
+        // Nom d'utilisateur Docker Hub (non sensible)
         DOCKER_HUB_USER = 'antoinepayet'
+        // Hôte Docker (Docker Desktop exposé via le daemon TCP)
         DOCKER_HOST = 'tcp://localhost:2375'
+        // Dossier temporaire pour Docker Scout (nettoyé régulièrement)
         DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
     }
 
     stages {
+        // 1) Préparation de l'environnement d'exécution
         stage('Preparing the environment') {
             steps {
                 script {
+                    // Nettoyage préventif du répertoire temporaire Docker Scout
                     powershell '''
                         if (Test-Path $env:DOCKER_SCOUT_TEMP_DIR) {
                             Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
@@ -36,41 +41,44 @@ pipeline {
             }
         }
 
+        // 2) Détection des changements pour construire/déployer uniquement les services modifiés
         stage('Detect Changes') {
             steps {
                 script {
                     def changedServices = []
                     for (service in microservices) {
-                        // Vérification des fichiers modifiés entre le commit actuel et le précédent
+                        // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque service
                         def changes = powershell(
                             script: "git diff --name-only HEAD^..HEAD ${service}/",
                             returnStdout: true
                         ).trim()
 
+                        // Si des changements sont détectés dans le dossier du service, on l'ajoute à la liste
                         if (changes) {
                             changedServices.add(service)
                         }
                     }
 
-                    // Si aucun service n'a été modifié, on construit tous les services
+                    // Si aucun service n'a été modifié, on traite tous les services (déploiement complet)
                     if (changedServices.isEmpty()) {
                         changedServices = microservices
                         echo "Aucun changement détecté : tous les services seront déployés"
                     }
 
-                    // Stockage des services modifiés dans une variable d'environnement
+                    // Partage la liste des services à traiter avec les stages suivants
                     env.CHANGES = changedServices.join(',')
                 }
             }
         }
 
+        // 3) Compilation des projets Angular et Maven
         stage('Project compilation') {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
-                            // Compilation différente selon le type de projet
+                            // Pour le front Angular : installation des dépendances et build
                             if (service == 'angular-front-end') {
                                 powershell '''
                                     npm install
@@ -78,6 +86,7 @@ pipeline {
                                     npm run build
                                 '''
                             } else {
+                                // Pour les microservices Java : build Maven sans exécuter les tests
                                 powershell 'mvn -B clean package -DskipTests'
                             }
                         }
@@ -86,11 +95,12 @@ pipeline {
             }
         }
 
+        // 4) Construction des images Docker pour les services à déployer
         stage('Build images') {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
-                    // Construction des images Docker
+                    // Construit une image par service avec un tag basé sur le numéro de build Jenkins
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
@@ -101,10 +111,11 @@ pipeline {
             }
         }
 
+        // 5) Authentification Docker (requise pour Docker Scout et push éventuels)
         stage('Docker Authentification') {
             steps {
                 script {
-                    // Authentification Docker Hub pour utiliser Docker Scout
+                    // Se connecte à Docker Hub avec le token stocké de manière sécurisée
                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
@@ -117,17 +128,18 @@ pipeline {
             }
         }
 
+        // 6) Analyse de sécurité des images avec Docker Scout
         stage('Docker Scout') {
             steps {
                 script {
-                    // Création du dossier pour les rapport s'il n'existe pas
+                    // S'assure que le dossier de rapports existe
                     powershell '''
                         if (!(Test-Path "scout-report")) {
                             New-Item -ItemType Directory -Force -Path "scout-report"
                         }
                     '''
 
-                    // Analyse des dépendances pour chaque image
+                    // Pour chaque image construite, génère un rapport (quickview + CVEs critiques)
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
@@ -148,17 +160,20 @@ pipeline {
             }
         }
 
+        // 7) Déploiement avec Docker Compose (complet ou sélectif)
         stage('Deploy with Docker Compose') {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
+                    // Met à jour les tags d'images dans le docker-compose pour pointer vers le build courant
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
                             powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml"
                         """
                     }
-                    // Si servicesList contient tous les microservices, on fait un déploiement complet
+
+                    // Détermine si un déploiement complet est nécessaire (tous les services)
                     if (servicesList.sort() == microservices.sort()) {
                         echo "Déploiement complet de tous les services"
                         powershell '''
@@ -166,8 +181,8 @@ pipeline {
                             docker compose up -d
                         '''
                     } else {
+                        // Déploiement sélectif : redémarre uniquement les services affectés
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
-                        // Mise à jour des tags dans le fichier docker-compose et redémarrage des services modifiés
                         for (service in servicesList) {
                             powershell """
                                 docker compose stop ${service}
@@ -181,14 +196,17 @@ pipeline {
     }
 
     post {
+        // Gestion des échecs : messages de diagnostics orientés (sécurité, authentification, autres erreurs)
         failure {
             script {
                 def buildUrl = env.BUILD_URL
                 def jobName = env.JOB_NAME
                 def buildNumber = env.BUILD_NUMBER
+                // Analyse les 2000 dernières lignes pour déterminer la cause probable
                 def buildLog = currentBuild.rawBuild.getLog(2000).join('\n')
 
                 if (buildLog.contains('docker scout cves')) {
+                    // Échec dû à des vulnérabilités critiques détectées par Docker Scout
                     echo """/!\\ ALERTE DE SÉCURITÉ /!\\
                     Pipeline : ${jobName}
                     Build : #${buildNumber}
@@ -203,6 +221,7 @@ pipeline {
                            buildLog.contains('authentification required') ||
                            buildLog.contains('access denied') ||
                            buildLog.contains('permission denied')) {
+                    // Échec lié à l'authentification Docker Hub
                     echo """/!\\ ERREUR D'AUTHENTIFICATION DOCKER /!\\
                     Pipeline : ${jobName}
                     Build : #${buildNumber}
@@ -217,6 +236,7 @@ pipeline {
                     4. Vérifier que Docker Desktop est bien démarré et accessible
                     """
                 } else {
+                    // Échec générique (voir les logs détaillés de Jenkins pour investiguer)
                     echo """Pipeline : ${jobName}
                     Build : #${buildNumber}
                     Status : ÉCHEC
@@ -226,9 +246,11 @@ pipeline {
                 }
             }
         }
+
+        // Toujours exécuter un nettoyage de sécurité
         always {
             script {
-                // Nettoyage final des fichiers temporaires
+                // Nettoyage final du répertoire temporaire Docker Scout (meilleure hygiène des builds)
                 powershell '''
                     if (Test-Path $env:DOCKER_SCOUT_TEMP_DIR) {
                         try {
@@ -243,6 +265,8 @@ pipeline {
                 '''
             }
         }
+
+        // Notification de réussite simple
         success {
             echo "Pipeline exécuté avec succès"
         }

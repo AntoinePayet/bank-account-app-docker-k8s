@@ -1,27 +1,27 @@
-# Stage 1: Compile and Build angular codebase
+# ETAPE 1: Compilatioon et build du code Angular
 
-# Use official node image as the base image
+# Utilise l'image officiel de Nodejs pour compiler l'applicaiton
 FROM node:lts AS build
 
-# Set the working directory
+# Définit le répertoire de travail
 WORKDIR /usr/local/app
 
-# Add the source code to app
+# Copie le code source dans le répertoire de travail
 COPY ./ /usr/local/app/
 
-# Install all the dependencies
+# Installe les dépendances de l'application
 RUN npm install
 
-# Generate the build of the application
+# Génère les fichiers de production de l'application
 RUN npm run build
 
 
-# Stage 2: Serve app with nginx server
-# Use official nginx image as the base image
+# ETAPE 2: Déployer l'application avec Nginx
+# Utilise l'image officiel de Nginx pour déployer l'applciation Angular
 FROM nginx:latest
 
-# Copy the build output to replace the default nginx contents
+# Copie les fichiers générés vers le répertoire par défaut de Nginx pour qu'ils soient accessibles via Nginx
 COPY --from=build /usr/local/app/dist/angular-front-end/browser /usr/share/nginx/html
 
-# Expose port 80
+# Expose le port 80
 EXPOSE 80
