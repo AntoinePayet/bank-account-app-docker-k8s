@@ -8,6 +8,7 @@ def microservices = [
     'gateway-service'
 ]
 
+
 pipeline {
     agent any
     tools {
