@@ -131,10 +131,10 @@ pipeline {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
                             # Aperçu rapide et général des vulnérabilités
-                            docker scout quickview ${imageTag} > scout-report/${service}.txt
+                            docker scout quickview ${imageTag} > scout-report/${service}_${env.BUILD_NUMBER}.txt
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
-                            docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}.txt
+                            docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}_${env.BUILD_NUMBER}.txt
                         """
                     }
                 }
