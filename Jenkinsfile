@@ -22,24 +22,10 @@ pipeline {
         DOCKER_HUB_USER = 'antoinepayet'
         // Hôte Docker (Docker Desktop exposé via le daemon TCP)
 //         DOCKER_HOST = 'tcp://localhost:2375'
-        // Dossier temporaire pour Docker Scout (nettoyé régulièrement)
-        DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
+
     }
 
     stages {
-        // 1) Préparation de l'environnement d'exécution
-        stage('Preparing the environment') {
-            steps {
-                script {
-                    // Nettoyage préventif du répertoire temporaire Docker Scout
-                    powershell '''
-                        if (Test-Path $env:DOCKER_SCOUT_TEMP_DIR) {
-                            Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
-                        }
-                    '''
-                }
-            }
-        }
 
         // 2) Détection des changements pour construire/déployer uniquement les services modifiés
         stage('Detect Changes') {
@@ -67,6 +53,7 @@ pipeline {
 
                     // Partage la liste des services à traiter avec les stages suivants
                     env.CHANGES = changedServices.join(',')
+                    echo "Services à traiter: ${env.CHANGES}"
                 }
             }
         }
@@ -82,7 +69,6 @@ pipeline {
                             if (service == 'angular-front-end') {
                                 powershell '''
                                     npm install
-                                    npm install @angular/cli@latest
                                     npm run build
                                 '''
                             } else {
@@ -149,11 +135,6 @@ pipeline {
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
                             docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}.txt
-
-                            # Nettoyage des fichiers temporaires après chaque analyse
-                            if (Test-Path "$env:DOCKER_SCOUT_TEMP_DIR") {
-                                Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
-                            }
                         """
                     }
                 }
@@ -244,25 +225,6 @@ pipeline {
                     URL du build : ${buildUrl}
                     """
                 }
-            }
-        }
-
-        // Toujours exécuter un nettoyage de sécurité
-        always {
-            script {
-                // Nettoyage final du répertoire temporaire Docker Scout (meilleure hygiène des builds)
-                powershell '''
-                    if (Test-Path $env:DOCKER_SCOUT_TEMP_DIR) {
-                        try {
-                            Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction Stop
-                            Write-Host "Nettoyage des fichiers temporaires Docker Scout effectué avec succès"
-                        } catch {
-                            Write-Warning "Impossible de nettoyer complètement $env:DOCKER_SCOUT_TEMP_DIR : $($_.Exception.Message)"
-                        }
-                    } else {
-                        Write-Host "Aucun fichier temporaire Docker Scout à nettoyer"
-                    }
-                '''
             }
         }
 
