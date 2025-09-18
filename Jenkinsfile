@@ -243,7 +243,6 @@ pipeline {
                   - Les permissions de l'utilisateur '${env.DOCKER_HUB_USER}'
                   - Que Docker Desktop est démarré et accessible
                 """
-                }
             }
         }
 
