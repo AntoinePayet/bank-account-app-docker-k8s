@@ -26,8 +26,6 @@ pipeline {
         DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
     }
 
-    }
-
     stages {
         // 1) Préparation de l'environnement d'exécution
         stage('Preparing the environment') {
