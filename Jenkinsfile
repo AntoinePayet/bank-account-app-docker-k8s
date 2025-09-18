@@ -63,7 +63,7 @@ pipeline {
                     for (service in microservices) {
                         def hasAnyContainer = powershell (
                             script: "docker compose ps -a -q ${service}",
-                            returnStdout: True
+                            returnStdout: true
                         ).trim()
                         if (!hasAnyContainer){
                             echo "Service '${service}' sans conteneur existant détecté : inclusion pour déploiement initial"
@@ -231,50 +231,18 @@ pipeline {
         // Gestion des échecs : messages de diagnostics orientés (sécurité, authentification, autres erreurs)
         failure {
             script {
-                def buildUrl = env.BUILD_URL
-                def jobName = env.JOB_NAME
-                def buildNumber = env.BUILD_NUMBER
-                // Analyse les 2000 dernières lignes pour déterminer la cause probable
-                def buildLog = currentBuild.rawBuild.getLog(2000).join('\n')
+                echo """/!\\ ECHEC DU PIPELINE /!\\
+                Pipeline : ${env.JOB_NAME}
+                Build : #${env.BUILD_NUMBER}
+                Statut : ECHEC
 
-                if (buildLog.contains('docker scout cves')) {
-                    // Échec dû à des vulnérabilités critiques détectées par Docker Scout
-                    echo """/!\\ ALERTE DE SÉCURITÉ /!\\
-                    Pipeline : ${jobName}
-                    Build : #${buildNumber}
-                    Status : ÉCHEC
-                    Raison : Des vulnérabilités critiques ont été détectées
-                    URL du build : ${buildUrl}
-
-                    Veuillez consulter les rapports de sécurité dans le dossier 'scout-report' pour plus de détails.
-                    """
-                } else if (buildLog.toLowerCase().contains('error logging in') ||
-                           buildLog.contains('unauthorized') ||
-                           buildLog.contains('authentification required') ||
-                           buildLog.contains('access denied') ||
-                           buildLog.contains('permission denied')) {
-                    // Échec lié à l'authentification Docker Hub
-                    echo """/!\\ ERREUR D'AUTHENTIFICATION DOCKER /!\\
-                    Pipeline : ${jobName}
-                    Build : #${buildNumber}
-                    Status : ÉCHEC
-                    Raison : Des vulnérabilités critiques ont été détectées
-                    URL du build : ${buildUrl}
-
-                    Actions recommandées :
-                    1. Vérifier que le credential 'DOCKER_PAT' est correctement configuré dans Jenkins
-                    2. Vérifier que le token Docker Hub n'a pas expiré
-                    3. Vérifier que l'utilisateur '${env.DOCKER_HUB_USER}' a les permissions necéssaires
-                    4. Vérifier que Docker Desktop est bien démarré et accessible
-                    """
-                } else {
-                    // Échec générique (voir les logs détaillés de Jenkins pour investiguer)
-                    echo """Pipeline : ${jobName}
-                    Build : #${buildNumber}
-                    Status : ÉCHEC
-                    Raison : Erreur technique dans le pipeline
-                    URL du build : ${buildUrl}
-                    """
+                Consultez les logs du build (onglet Console Output) pour le détail.
+                Si l'échec survient lors de l'étape d'authentification Docker, vérifiez:
+                  - Le crédential 'DOCKER_PAT' dans Jenkins
+                  - La validité du token Docker Hub
+                  - Les permissions de l'utilisateur '${env.DOCKER_HUB_USER}'
+                  - Que Docker Desktop est démarré et accessible
+                """
                 }
             }
         }
