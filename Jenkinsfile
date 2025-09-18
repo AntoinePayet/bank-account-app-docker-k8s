@@ -61,7 +61,27 @@ pipeline {
                         }
                     }
 
-                    // Si aucun service n'a été modifié, on traite tous les services (déploiement complet)
+                    // Inclure les services qui n'ont jamais été déployés (aucun conteneur créé)
+                    for (service in microservices) {
+                        def hasAnyContainer = powershell (
+                            script: "docker compose ps -a -q ${service}",
+                            returnStdout: True
+                        ).trim()
+                        if (!hasAnyContainer){
+                            echo "Service '${service}' sans conteneur existant détecté : inclusion pour déploiement initial"
+                            changedServices.add(service)
+                        }
+                    }
+
+                    // Détection du premier run: pas de build précédent réussi ou build #1 -> déploiement complet
+                    def isFirstRun = (currentBuild?.previousSuccessfulBuild == null && env.BUILD_NUMBER == '1')
+                    if (isFirstRun) {
+                        echo "Premier lancement du pipeline détecté : déploiement complet de tous les services"
+                        changedServices = microservices
+                    }
+
+                    // Si aucun service n'a été modifié ou marqué comme "non déployé", on traite tous les services (déploiement complet)
+                    changedServices = changedServices.unique()
                     if (changedServices.isEmpty()) {
                         changedServices = microservices
                         echo "Aucun changement détecté : tous les services seront déployés"
@@ -176,12 +196,24 @@ pipeline {
                     }
 
                     // Détermine si un déploiement complet est nécessaire (tous les services)
-                    if (servicesList.sort() == microservices.sort()) {
+
+                    // Si aucun conteneur du stack n'est en cours d'exécution, effectuer un déploiement complet
+                    def runningContainers = powershell(
+                        script: 'docker compose ps -q',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!runningContainers) {
+                        echo "Aucun conteneur en cours d'exécition pour le stack : déploiement complet"
+                        powershell """
+                            docker compose up -d
+                        """
+                    } else if (servicesList.sort() == microservices.sort()) {
                         echo "Déploiement complet de tous les services"
-                        powershell '''
+                        powershell """
                             docker compose down
                             docker compose up -d
-                        '''
+                        """
                     } else {
                         // Déploiement sélectif : redémarre uniquement les services affectés
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
