@@ -57,7 +57,7 @@ pipeline {
                         for (service in microservices) {
                             // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque service
                             def changes = powershell(
-                                script: "git diff --name-only HEAD^..HEAD ${service}/",
+                                script: "git diff --name-only HEAD^..HEAD ${service}/ 2>&1",
                                 returnStdout: true
                             ).trim()
 
@@ -70,7 +70,7 @@ pipeline {
                         // Inclure les services qui n'ont jamais été déployés (aucun conteneur créé)
                         for (service in microservices) {
                             def hasAnyContainer = powershell (
-                                script: "docker compose ps -a -q ${service}",
+                                script: "docker compose ps -a -q ${service} 2>&1",
                                 returnStdout: true
                             ).trim()
                             if (!hasAnyContainer){
@@ -104,12 +104,12 @@ pipeline {
                             // Pour le front Angular : installation des dépendances et build
                             if (service == 'angular-front-end') {
                                 powershell '''
-                                    npm install
-                                    npm run build
+                                    npm install 2>&1
+                                    npm run build 2>&1
                                 '''
                             } else {
                                 // Pour les microservices Java : build Maven sans exécuter les tests
-                                powershell 'mvn -B clean package -DskipTests'
+                                powershell 'mvn -B clean package -DskipTests 2>&1'
                             }
                         }
                     }
@@ -126,7 +126,7 @@ pipeline {
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            powershell "docker build -t ${imageTag} ."
+                            powershell "docker build -t ${imageTag} . 2>&1"
                         }
                     }
                 }
@@ -142,8 +142,8 @@ pipeline {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
-                            docker login -u $username -p $password
-                            docker extension install docker/scout-extension
+                            docker login -u $username -p $password 2>&1
+                            docker extension install docker/scout-extension 2>&1
                         '''
                     }
                 }
@@ -157,7 +157,7 @@ pipeline {
                     // S'assure que le dossier de rapports existe
                     powershell '''
                         if (!(Test-Path "scout-report")) {
-                            New-Item -ItemType Directory -Force -Path "scout-report"
+                            New-Item -ItemType Directory -Force -Path "scout-report" | Out-Null
                         }
                     '''
 
@@ -167,10 +167,10 @@ pipeline {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
                             # Aperçu rapide et général des vulnérabilités
-                            docker scout quickview ${imageTag} > scout-report/${service}_${env.BUILD_NUMBER}.txt
+                            docker scout quickview ${imageTag} > scout-report/${service}_${env.BUILD_NUMBER}.txt 2>&1
 
                             # Analyse détaillée des CVEs et ajout dans un rapport
-                            docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}_${env.BUILD_NUMBER}.txt
+                            docker scout cves ${imageTag} --exit-code --only-severity critical >> scout-report/${service}_${env.BUILD_NUMBER}.txt 2>&1
 
                             # Nettoyage des fichiers temporaires après chaque analyse
                             if (Test-Path "$env:DOCKER_SCOUT_TEMP_DIR") {
@@ -191,36 +191,34 @@ pipeline {
                     for (service in servicesList) {
                         def imageTag = "${service}:${env.BUILD_NUMBER}"
                         powershell """
-                            powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml"
+                            powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${imageTag}' | Set-Content docker-compose.yml" 2>&1
                         """
                     }
 
-                    // Détermine si un déploiement complet est nécessaire (tous les services)
-
                     // Si aucun conteneur du stack n'est en cours d'exécution, effectuer un déploiement complet
                     def runningContainers = powershell(
-                        script: 'docker compose ps -q',
+                        script: 'docker compose ps -q 2>&1',
                         returnStdout: true
                     ).trim()
 
                     if (!runningContainers) {
                         echo "Aucun conteneur en cours d'exécition pour le stack : déploiement complet"
                         powershell """
-                            docker compose up -d
+                            docker compose up -d 2>&1
                         """
                     } else if (servicesList.sort() == microservices.sort()) {
                         echo "Déploiement complet de tous les services"
                         powershell """
-                            docker compose down
-                            docker compose up -d
+                            docker compose down 2>&1
+                            docker compose up -d 2>&1
                         """
                     } else {
                         // Déploiement sélectif : redémarre uniquement les services affectés
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
                         for (service in servicesList) {
                             powershell """
-                                docker compose stop ${service}
-                                docker compose up -d ${service}
+                                docker compose stop ${service} 2>&1
+                                docker compose up -d ${service} 2>&1
                             """
                         }
                     }
