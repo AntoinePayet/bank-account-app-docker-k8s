@@ -195,6 +195,27 @@ pipeline {
                         """
                     }
 
+                    // Synchroniser les tags des services non traités (hors servicesList) dans docker compose
+                    def notChanged = microservices.findAll { !servicesList.contains(it) }
+                    for (service in notChanged) {
+                        def containerId = powershell (
+                            script: "docker compose ps -q ${service} 2>&1",
+                            returnStdout: true
+                        ).trim()
+                        if (containerId) {
+                            def runningImage = powershell(
+                                script: "docker inspect --format='{{.Config.Image}}' ${containerId} 2>&1",
+                                returnStdout: true
+                            ).trim()
+                            if (runningImage && runningImage.contains(':')) {
+                                def tag = runningImage.substring(runningImage.lastIndexOf(':') + 1)
+                                powershell """
+                                    powershell -Command "(Get-Content docker-compose.yml) -replace '${service}:latest', '${service}:${tag}' | Set-Content docker-compose.yml" 2>&1
+                                """
+                            }
+                        }
+                    }
+
                     // Si aucun conteneur du stack n'est en cours d'exécution, effectuer un déploiement complet
                     def runningContainers = powershell(
                         script: 'docker compose ps -q 2>&1',
