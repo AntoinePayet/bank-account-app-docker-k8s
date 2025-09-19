@@ -126,7 +126,7 @@ pipeline {
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
-                            powershell "docker build -t ${imageTag} . 2>&1"
+                            powershell "docker build -t ${imageTag} ."
                         }
                     }
                 }
@@ -142,8 +142,8 @@ pipeline {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
-                            docker login -u $username -p $password 2>&1
-                            docker extension install docker/scout-extension 2>&1
+                            docker login -u $username --password-stdin <<< $password
+                            echo y | docker extension install docker/scout-extension 2>&1
                         '''
                     }
                 }
@@ -202,15 +202,13 @@ pipeline {
                     ).trim()
 
                     if (!runningContainers) {
-                        echo "Aucun conteneur en cours d'exécition pour le stack : déploiement complet"
-                        powershell """
-                            docker compose up -d 2>&1
-                        """
+                        echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
+                        powershell "docker compose up -d"
                     } else if (servicesList.sort() == microservices.sort()) {
                         echo "Déploiement complet de tous les services"
                         powershell """
-                            docker compose down 2>&1
-                            docker compose up -d 2>&1
+                            docker compose down
+                            docker compose up -d
                         """
                     } else {
                         // Déploiement sélectif : redémarre uniquement les services affectés
