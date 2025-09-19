@@ -46,36 +46,38 @@ pipeline {
             steps {
                 script {
                     def changedServices = []
-                    for (service in microservices) {
-                        // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque service
-                        def changes = powershell(
-                            script: "git diff --name-only HEAD^..HEAD ${service}/",
-                            returnStdout: true
-                        ).trim()
-
-                        // Si des changements sont détectés dans le dossier du service, on l'ajoute à la liste
-                        if (changes) {
-                            changedServices.add(service)
-                        }
-                    }
-
-                    // Inclure les services qui n'ont jamais été déployés (aucun conteneur créé)
-                    for (service in microservices) {
-                        def hasAnyContainer = powershell (
-                            script: "docker compose ps -a -q ${service}",
-                            returnStdout: true
-                        ).trim()
-                        if (!hasAnyContainer){
-                            echo "Service '${service}' sans conteneur existant détecté : inclusion pour déploiement initial"
-                            changedServices.add(service)
-                        }
-                    }
 
                     // Détection du premier run: pas de build précédent réussi ou build #1 -> déploiement complet
                     def isFirstRun = (currentBuild?.previousSuccessfulBuild == null && env.BUILD_NUMBER == '1')
+
                     if (isFirstRun) {
                         echo "Premier lancement du pipeline détecté : déploiement complet de tous les services"
                         changedServices = microservices
+                    } else {
+                        for (service in microservices) {
+                            // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque service
+                            def changes = powershell(
+                                script: "git diff --name-only HEAD^..HEAD ${service}/",
+                                returnStdout: true
+                            ).trim()
+
+                            // Si des changements sont détectés dans le dossier du service, on l'ajoute à la liste
+                            if (changes) {
+                                changedServices.add(service)
+                            }
+                        }
+
+                        // Inclure les services qui n'ont jamais été déployés (aucun conteneur créé)
+                        for (service in microservices) {
+                            def hasAnyContainer = powershell (
+                                script: "docker compose ps -a -q ${service}",
+                                returnStdout: true
+                            ).trim()
+                            if (!hasAnyContainer){
+                                echo "Service '${service}' sans conteneur existant détecté : inclusion pour déploiement initial"
+                                changedServices.add(service)
+                            }
+                        }
                     }
 
                     // Si aucun service n'a été modifié ou marqué comme "non déployé", on traite tous les services (déploiement complet)
