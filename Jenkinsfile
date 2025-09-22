@@ -242,7 +242,7 @@ pipeline {
                         // Fusion services modifiés + services arrêtés, puis déduplication
                         def toStart = (servicesList + notRunningServices.split()).unique()
                         echo "Services à (re)démarrer: ${toStart}"
-                        powershell "
+                        powershell """
                             docker compose stop ${toStart.join('')} 2>&1
                             docker compose up -d ${toStart.join('')} 2>&1
                         """
