@@ -242,8 +242,6 @@ pipeline {
                         """
                     } else if (!notRunningServices.isEmpty()) {
                         echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
-                        echo "servicesList: ${servicesList}"
-                        echo "notRunningServices: ${notRunningServices}"
                         // Fusion services modifiés + services arrêtés, puis déduplication
                         def toStart = []
                         def seen = new HashSet()
