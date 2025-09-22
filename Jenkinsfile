@@ -239,6 +239,8 @@ pipeline {
                         """
                     } else if (notRunningServices) {
                         echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
+                        echo "servicesList ${servicesList}"
+                        echo "notRunningServices ${notRunningServices}"
                         // Fusion services modifiés + services arrêtés, puis déduplication
                         def toStart = (servicesList + notRunningServices.split()).unique()
                         echo "Services à (re)démarrer: ${toStart}"
