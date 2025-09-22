@@ -216,30 +216,22 @@ pipeline {
                         }
                     }
 
-                    def notRunningServices = []
-                    def runningServices = []
-                    for (service in notChanged) {
-                        // Services en cours d'exécution
-                        def running = powershell(
-                            script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
-                            returnStdout: true
-                        ).trim()
-                        if (running) {
-                            runningServices.add(service)
-                        }
+                    // Services en cours d'exécution
+                    def runningList = powershell(
+                        script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
+                        returnStdout: true
+                    ).trim()
 
-                        // Services/conteneurs non running (exited/created/dead)
-                        def notRunning = powershell(
-                            script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
-                            returnStdout: true
-                        ).trim()
+                    // Services/conteneurs non running (exited/created/dead)
+                    def notRunningList = powershell(
+                        script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
+                        returnStdout: true
+                    ).trim()
 
-                        if (notRunning) {
-                            notRunningServices.add(service)
-                        }
-                    }
+                    def runningServices = runningList ? runningList.split().toList() : []
+                    def notRunningServices = notRunningList ? notRunningList.split().toList() : []
 
-                    if (!runningServices) {
+                    if (runningServices.isEmpty()) {
                         echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
                         powershell "docker compose up -d"
                     } else if (servicesList.sort() == microservices.sort()) {
@@ -248,25 +240,25 @@ pipeline {
                             docker compose down
                             docker compose up -d
                         """
-                    } else if (notRunningServices) {
+                    } else if (!notRunningServices.isEmpty()) {
                         echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
-                        echo "servicesList ${servicesList}"
-                        echo "notRunningServices ${notRunningServices}"
+                        echo "servicesList: ${servicesList}"
+                        echo "notRunningServices: ${notRunningServices}"
                         // Fusion services modifiés + services arrêtés, puis déduplication
-                        def toStart = (servicesList + notRunningServices.split()).toSet().toList()
+                        def toStart = new ArrayList(new LinkedHashSet(servicesList + notRunningServices))
                         echo "Services à (re)démarrer: ${toStart}"
+                        def svc = toStart.join(' ')
                         powershell """
-                            docker compose stop ${toStart.join(' ')} 2>&1
-                            docker compose up -d ${toStart.join(' ')} 2>&1
+                            docker compose stop ${svc} 2>&1
+                            docker compose up -d ${svc} 2>&1
                         """
                     } else {
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
-                        for (service in servicesList) {
-                            powershell """
-                                docker compose stop ${service} 2>&1
-                                docker compose up -d ${service} 2>&1
-                            """
-                        }
+                        def svc = servicesList.join(' ')
+                        powershell """
+                            docker compose stop ${svc} 2>&1
+                            docker compose up -d ${svc} 2>&1
+                        """
                     }
                 }
             }
