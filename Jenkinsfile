@@ -199,7 +199,7 @@ pipeline {
                     def notChanged = microservices.findAll { !servicesList.contains(it) }
                     for (service in notChanged) {
                         def containerId = powershell (
-                            script: "docker compose ps -q ${service} 2>&1",
+                            script: "docker compose -p testdeployment2 ps -q -a ${service} 2>&1",
                             returnStdout: true
                         ).trim()
                         if (containerId) {
