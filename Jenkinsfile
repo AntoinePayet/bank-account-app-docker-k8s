@@ -216,17 +216,28 @@ pipeline {
                         }
                     }
 
-                    // Services en cours d'exécution
-                    def runningServices = powershell(
-                        script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
-                        returnStdout: true
-                    ).trim()
+                    def notRunningServices = []
+                    def runningServices = []
+                    for (service in notChanged) {
+                        // Services en cours d'exécution
+                        def running = powershell(
+                            script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
+                            returnStdout: true
+                        ).trim()
+                        if (running) {
+                            runningServices.add(service)
+                        }
 
-                    // Services/conteneurs non running (exited/created/dead)
-                    def notRunningServices = powershell(
-                        script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
-                        returnStdout: true
-                    ).trim()
+                        // Services/conteneurs non running (exited/created/dead)
+                        def notRunning = powershell(
+                            script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
+                            returnStdout: true
+                        ).trim()
+
+                        if (notRunning) {
+                            notRunningServices.add(service)
+                        }
+                    }
 
                     if (!runningServices) {
                         echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
@@ -242,11 +253,11 @@ pipeline {
                         echo "servicesList ${servicesList}"
                         echo "notRunningServices ${notRunningServices}"
                         // Fusion services modifiés + services arrêtés, puis déduplication
-                        def toStart = (servicesList + notRunningServices.split()).unique()
+                        def toStart = (servicesList + notRunningServices.split()).toSet().toList()
                         echo "Services à (re)démarrer: ${toStart}"
                         powershell """
-                            docker compose stop ${toStart.join('')} 2>&1
-                            docker compose up -d ${toStart.join('')} 2>&1
+                            docker compose stop ${toStart.join(' ')} 2>&1
+                            docker compose up -d ${toStart.join(' ')} 2>&1
                         """
                     } else {
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
