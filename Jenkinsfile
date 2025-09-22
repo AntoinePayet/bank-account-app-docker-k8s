@@ -245,7 +245,7 @@ pipeline {
                         echo "servicesList: ${servicesList}"
                         echo "notRunningServices: ${notRunningServices}"
                         // Fusion services modifiés + services arrêtés, puis déduplication
-                        def toStart = new ArrayList(new LinkedHashSet(servicesList + notRunningServices))
+                        def toStart = (servicesList + notRunningServices).unique()
                         echo "Services à (re)démarrer: ${toStart}"
                         def svc = toStart.join(' ')
                         powershell """
