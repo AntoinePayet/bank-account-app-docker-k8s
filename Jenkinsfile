@@ -216,13 +216,19 @@ pipeline {
                         }
                     }
 
-                    // Si aucun conteneur du stack n'est en cours d'exécution, effectuer un déploiement complet
-                    def runningContainers = powershell(
-                        script: 'docker compose ps -q 2>&1',
+                    // Services en cours d'exécution
+                    def runningServices = powershell(
+                        script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
                         returnStdout: true
                     ).trim()
 
-                    if (!runningContainers) {
+                    // Services/conteneurs non running (exited/created/dead)
+                    def notRunningServices = powershell(
+                        script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!runningServices) {
                         echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
                         powershell "docker compose up -d"
                     } else if (servicesList.sort() == microservices.sort()) {
@@ -231,8 +237,18 @@ pipeline {
                             docker compose down
                             docker compose up -d
                         """
+                    } else if (notRunningServices) {
+                        echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
+                        // Fusion services modifiés + services arrêtés, puis déduplication
+                        def toStart = (servicesList + notRunningServices.split()).toSet().toList()
+                        echo "Services à (re)démarrer: ${toStart}"
+                        for (service in toStart) {
+                            powershell """
+                                docker compose stop ${service} 2>&1
+                                docker compose up -d ${service} 2>&1
+                            """
+                        }
                     } else {
-                        // Déploiement sélectif : redémarre uniquement les services affectés
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
                         for (service in servicesList) {
                             powershell """
