@@ -240,14 +240,12 @@ pipeline {
                     } else if (notRunningServices) {
                         echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
                         // Fusion services modifiés + services arrêtés, puis déduplication
-                        def toStart = (servicesList + notRunningServices.split()).toSet().toList()
+                        def toStart = (servicesList + notRunningServices.split()).unique()
                         echo "Services à (re)démarrer: ${toStart}"
-                        for (service in toStart) {
-                            powershell """
-                                docker compose stop ${service} 2>&1
-                                docker compose up -d ${service} 2>&1
-                            """
-                        }
+                        powershell "
+                            docker compose stop ${toStart.join('')} 2>&1
+                            docker compose up -d ${toStart.join('')} 2>&1
+                        """
                     } else {
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
                         for (service in servicesList) {
