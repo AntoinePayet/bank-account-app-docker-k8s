@@ -29,7 +29,7 @@ public class CustomerServiceApplication {
                             .email("antoine@gmail.com")
                             .build(),
                     Customer.builder()
-                            .firstName("Gilou")
+                            .firstName("Gilles")
                             .lastName("Payet")
                             .email("gilles@gmail.com")
                             .build()
