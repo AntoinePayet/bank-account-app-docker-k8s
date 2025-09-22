@@ -245,7 +245,14 @@ pipeline {
                         echo "servicesList: ${servicesList}"
                         echo "notRunningServices: ${notRunningServices}"
                         // Fusion services modifiés + services arrêtés, puis déduplication
-                        def toStart = (servicesList + notRunningServices).unique()
+                        def toStart = []
+                        def seen = new HashSet()
+                        for (s in servicesList) {
+                            if (s && seen.add(s)) toStart.add(s)
+                        }
+                        for (s in notRunningServices) {
+                            if (s && seen.add(s)) toStart.add(s)
+                        }
                         echo "Services à (re)démarrer: ${toStart}"
                         def svc = toStart.join(' ')
                         powershell """
