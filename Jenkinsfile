@@ -41,17 +41,17 @@ pipeline {
             }
         }
 
-        // 2) Détection des changements pour construire/déployer uniquement les services modifiés
+        // 2) Détection des changements pour déployer les services modifiés ou pas encore déployés
         stage('Detect Changes') {
             steps {
                 script {
                     def changedServices = []
 
-                    // Détection du premier run: pas de build précédent réussi ou build #1 -> déploiement complet
+                    // Premier run: pas de build précédent ET build #1 => déploiement complet
                     def isFirstRun = (currentBuild?.previousSuccessfulBuild == null && env.BUILD_NUMBER == '1')
 
                     if (isFirstRun) {
-                        echo "Premier lancement du pipeline détecté : déploiement complet de tous les services"
+                        echo "Premier lancement du pipeline : déploiement complet de tous les services"
                         changedServices = microservices
                     } else {
                         for (service in microservices) {
@@ -74,13 +74,13 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             if (!hasAnyContainer){
-                                echo "Service '${service}' sans conteneur existant détecté : inclusion pour déploiement initial"
+                                echo "Service '${service}' sans conteneur existant : inclusion pour déploiement initial"
                                 changedServices.add(service)
                             }
                         }
                     }
 
-                    // Si aucun service n'a été modifié ou marqué comme "non déployé", on traite tous les services (déploiement complet)
+                    // Déduplication + déploiement de tous les services si aucune modification détectée
                     changedServices = changedServices.unique()
                     if (changedServices.isEmpty()) {
                         changedServices = microservices
@@ -94,7 +94,7 @@ pipeline {
             }
         }
 
-        // 3) Compilation des projets Angular et Maven
+        // 3) Compilation des projets (Node pour Angular, Maven pour les microservices Java)
         stage('Project compilation') {
             steps {
                 script {
@@ -104,7 +104,7 @@ pipeline {
                             // Pour le front Angular : installation des dépendances et build
                             if (service == 'angular-front-end') {
                                 powershell '''
-                                    npm install 2>&1
+                                    npm ci 2>&1
                                     npm run build 2>&1
                                 '''
                             } else {
@@ -133,7 +133,7 @@ pipeline {
             }
         }
 
-        // 5) Authentification Docker (requise pour Docker Scout et push éventuels)
+        // 5) Authentification Docker (requise pour Docker Scout)
         stage('Docker Authentification') {
             steps {
                 script {
@@ -154,7 +154,7 @@ pipeline {
         stage('Docker Scout') {
             steps {
                 script {
-                    // S'assure que le dossier de rapports existe
+                    // Prépare le répertoire de rapport pour collecter les sorties
                     powershell '''
                         if (!(Test-Path "scout-report")) {
                             New-Item -ItemType Directory -Force -Path "scout-report" | Out-Null
@@ -195,7 +195,7 @@ pipeline {
                         """
                     }
 
-                    // Synchroniser les tags des services non traités (hors servicesList) dans docker compose
+                    // Pour les services non modifiés, conserve le tag actuellement utilisé par les conteneurs
                     def notChanged = microservices.findAll { !servicesList.contains(it) }
                     for (service in notChanged) {
                         def containerId = powershell (
@@ -216,13 +216,13 @@ pipeline {
                         }
                     }
 
-                    // Services en cours d'exécution
+                    // Liste des services en cours d'exécution
                     def runningList = powershell(
                         script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
                         returnStdout: true
                     ).trim()
 
-                    // Services/conteneurs non running (exited/created/dead)
+                    // Liste des services non-running (exited/created/dead)
                     def notRunningList = powershell(
                         script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
                         returnStdout: true
@@ -232,17 +232,19 @@ pipeline {
                     def notRunningServices = notRunningList ? notRunningList.split().toList() : []
 
                     if (runningServices.isEmpty()) {
+                        // Aucun Conteneur en cours => déploiement complet
                         echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
                         powershell "docker compose up -d"
                     } else if (servicesList.sort() == microservices.sort()) {
+                        // Tous les services sont concernés => redéploiement complet
                         echo "Déploiement complet de tous les services"
                         powershell """
                             docker compose down
                             docker compose up -d
                         """
                     } else if (!notRunningServices.isEmpty()) {
+                        // Déployer les services modifiés + ceux arrêtés
                         echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
-                        // Fusion services modifiés + services arrêtés, puis déduplication
                         def toStart = []
                         def seen = new HashSet()
                         for (s in servicesList) {
@@ -258,6 +260,7 @@ pipeline {
                             docker compose up -d ${svc} 2>&1
                         """
                     } else {
+                        // Déploiement sélectif limité aux services modifiés
                         echo "Déploiement sélectif des services modifiés : ${servicesList}"
                         def svc = servicesList.join(' ')
                         powershell """
@@ -275,16 +278,16 @@ pipeline {
         failure {
             script {
                 echo """/!\\ ECHEC DU PIPELINE /!\\
-                Pipeline : ${env.JOB_NAME}
-                Build : #${env.BUILD_NUMBER}
-                Statut : ECHEC
+                    Pipeline : ${env.JOB_NAME}
+                    Build : #${env.BUILD_NUMBER}
+                    Statut : ECHEC
 
-                Consultez les logs du build (onglet Console Output) pour le détail.
-                Si l'échec survient lors de l'étape d'authentification Docker, vérifiez:
-                  - Le crédential 'DOCKER_PAT' dans Jenkins
-                  - La validité du token Docker Hub
-                  - Les permissions de l'utilisateur '${env.DOCKER_HUB_USER}'
-                  - Que Docker Desktop est démarré et accessible
+                    Consultez les logs du build (onglet Console Output) pour le détail.
+                    Si l'échec survient lors de l'étape d'authentification Docker, vérifiez:
+                      - Le crédential 'DOCKER_PAT' dans Jenkins
+                      - La validité du token Docker Hub
+                      - Les permissions de l'utilisateur '${env.DOCKER_HUB_USER}'
+                      - Que le Daemon Docker est démarré et accessible
                 """
             }
         }
@@ -299,7 +302,7 @@ pipeline {
                             Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction Stop
                             Write-Host "Nettoyage des fichiers temporaires Docker Scout effectué avec succès"
                         } catch {
-                            Write-Warning "Impossible de nettoyer complètement $env:DOCKER_SCOUT_TEMP_DIR : $($_.Exception.Message)"
+                            Write-Warning "Avertissement: Impossible de nettoyer complètement $env:DOCKER_SCOUT_TEMP_DIR : $($_.Exception.Message)"
                         }
                     } else {
                         Write-Host "Aucun fichier temporaire Docker Scout à nettoyer"
