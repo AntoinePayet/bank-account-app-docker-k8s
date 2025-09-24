@@ -253,7 +253,7 @@ pipeline {
                         script: "docker compose ps --format '{{.Service}}' -a --status=running ${allDatabase} 2>&1",
                         returnStdout: true
                     )
-                    def runningDb = runningDatabases ? runningDatabases.trim().split.toList() : []
+                    def runningDb = runningDatabases ? runningDatabases.trim().split().toList() : []
 
                     // Liste des databases non-running
                     def notRunningDatabases = databases.findAll { !runningDb.contains(it) }
@@ -326,10 +326,7 @@ pipeline {
 
                         } else if (!notRunningServices.isEmpty()) {
                             // Déployer les services modifiés + ceux arrêtés
-                            echo """
-                                Déploiement des microservices modifiés ainsi que les conteneurs arrêtés
-                                Databases à (re)démarrer: ${notRunningDatabases}
-                            """
+                            echo "Déploiement des microservices modifiés ainsi que les conteneurs arrêtés"
                             def toStart = []
                             def seen = new HashSet()
                             for (s in servicesList) {
