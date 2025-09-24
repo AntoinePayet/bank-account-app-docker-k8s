@@ -244,9 +244,11 @@ pipeline {
                     ).trim()
                     def runningServices = runningList ? runningList.split().toList() : []
 
+                    def notRunningServices = microservices.findAll { !runningServices.contains(it) }
+
                     // Liste des microservices non-running (exited/created/dead)
                     def notRunningList = powershell(
-                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead ${allMicroservices} 2>&1",
+                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead --status=paused ${allMicroservices} 2>&1",
                         returnStdout: true
                     ).trim()
                     def notRunningServices = notRunningList ? notRunningList.split().toList() : []
@@ -344,7 +346,7 @@ pipeline {
                                 Microservices à (re)démarrer: ${toStart}
                                 Databases à (re)démarrer: ${notRunningDatabases}
                             """
-                            def svc = (toStart + notRunningDatabases)unique().join(' ')
+                            def svc = (toStart + notRunningDatabases).unique().join(' ')
                             powershell """
                                 docker compose stop ${svc}
                                 docker compose up -d ${svc}
