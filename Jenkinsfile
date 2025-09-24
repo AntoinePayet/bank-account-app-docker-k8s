@@ -251,17 +251,18 @@ pipeline {
                     ).trim()
                     def notRunningServices = notRunningList ? notRunningList.split().toList() : []
 
-                    // Liste les databases non-running (exited/created/dead)
+                    // Liste des databases running
                     def allDatabase = databases.join(' ')
-                    def notRunningDatabases = powershell (
-                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead --status=unknown ${allDatabase} 2>&1",
+                    def runningDatabases = powershell(
+                        script: "docker compose ps --format '{{.Service}}' -a --status=running ${allDatabase} 2>&1",
                         returnStdout: true
                     )
-                    def notRunningDb = notRunningDatabases ? notRunningDatabases.split().toList() : []
+                    def runningDb = runningDatabases ? runningDatabases.trim().split.toList() : []
+                    def notRunningDatabases = databases.findAll { !runningDb.contains(it) }
 
 
                     // Aucun conteneur de databases n'est arrêtés
-                    if (notRunningDb.isEmpty()) {
+                    if (notRunningDatabases.isEmpty()) {
                         if (runningServices.isEmpty()) {
                             // Aucun Conteneur en cours => déploiement complet
                             echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
@@ -305,12 +306,12 @@ pipeline {
 
                     // Un ou plusieurs conteneur(s) de databases est arrêtés
                     } else {
-                        def toDeploy = (microservices + notRunningDb).unique().join(' ')
+                        def toDeploy = (microservices + notRunningDatabases).unique().join(' ')
                         if (runningServices.isEmpty()) {
                             // Aucun Conteneur de microservices en cours => déploiement complet
                             echo """
                                 Aucun conteneur en cours d'exécution pour le stack : déploiement complet
-                                Databases à (re)démarrer: ${notRunningDb}
+                                Databases à (re)démarrer: ${notRunningDatabases}
                             """
                             powershell "docker compose up -d ${toDeploy}"
 
@@ -318,7 +319,7 @@ pipeline {
                             // Tous les services sont concernés => redéploiement complet
                             echo """
                                 Déploiement de tous les microservices
-                                Databases à (re)démarrer: ${notRunningDb}
+                                Databases à (re)démarrer: ${notRunningDatabases}
                             """
                             powershell """
                                 docker compose stop ${toDeploy}
@@ -329,7 +330,7 @@ pipeline {
                             // Déployer les services modifiés + ceux arrêtés
                             echo """
                                 Déploiement des microservices modifiés ainsi que les conteneurs arrêtés
-                                Databases à (re)démarrer: ${notRunningDb}
+                                Databases à (re)démarrer: ${notRunningDatabases}
                             """
                             def toStart = []
                             def seen = new HashSet()
@@ -341,9 +342,9 @@ pipeline {
                             }
                             echo """
                                 Microservices à (re)démarrer: ${toStart}
-                                Databases à (re)démarrer: ${notRunningDb}
+                                Databases à (re)démarrer: ${notRunningDatabases}
                             """
-                            def svc = (toStart + notRunningDb)unique().join(' ')
+                            def svc = (toStart + notRunningDatabases)unique().join(' ')
                             powershell """
                                 docker compose stop ${svc}
                                 docker compose up -d ${svc}
@@ -353,9 +354,9 @@ pipeline {
                             // Déploiement sélectif limité aux services modifiés
                             echo """
                                 Déploiement sélectif des microservices modifiés : ${servicesList}
-                                Databases à (re)démarrer: ${notRunningDb}
+                                Databases à (re)démarrer: ${notRunningDatabases}
                             """
-                            def svc = (servicesList + notRunningDb).join(' ')
+                            def svc = (servicesList + notRunningDatabases).join(' ')
                             powershell """
                                 docker compose stop ${svc} 2>&1
                                 docker compose up -d ${svc} 2>&1
