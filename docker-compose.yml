@@ -41,8 +41,6 @@ services:
     depends_on:
       config-service:
         condition: service_healthy
-      db_postgres_1:
-        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
       interval: 10s
@@ -60,8 +58,6 @@ services:
       - CONFIG_SERVICE_URL=http://config-service:9999
     depends_on:
       customer-service:
-        condition: service_healthy
-      db_postgres:
         condition: service_healthy
 
   gateway-service:
