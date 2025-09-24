@@ -8,6 +8,15 @@ def microservices = [
     'gateway-service'
 ]
 
+// Liste des bases de données
+def databases = [
+    'db_postgres',
+    'db_postgres_1'
+]
+
+// Liste des microservices à ne pas redéployer (qui doivent rester arrêtés)
+def nePasDeployer = []
+
 pipeline {
     agent any
     tools {
@@ -55,13 +64,13 @@ pipeline {
                         changedServices = microservices
                     } else {
                         for (service in microservices) {
-                            // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque service
+                            // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque microservice
                             def changes = powershell(
                                 script: "git diff --name-only HEAD^..HEAD ${service}/ 2>&1",
                                 returnStdout: true
                             ).trim()
 
-                            // Si des changements sont détectés dans le dossier du service, on l'ajoute à la liste
+                            // Si des changements sont détectés dans le dossier du microservice, on l'ajoute à la liste
                             if (changes) {
                                 changedServices.add(service)
                             }
@@ -74,7 +83,7 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             if (!hasAnyContainer){
-                                echo "Service '${service}' sans conteneur existant : inclusion pour déploiement initial"
+                                echo "Microservice '${service}' sans conteneur existant : inclusion pour déploiement initial"
                                 changedServices.add(service)
                             }
                         }
@@ -122,7 +131,7 @@ pipeline {
             steps {
                 script {
                     def servicesList = env.CHANGES.split(',')
-                    // Construit une image par service avec un tag basé sur le numéro de build Jenkins
+                    // Construit une image par microservice avec un tag basé sur le numéro de build Jenkins
                     for (service in servicesList) {
                         dir(service) {
                             def imageTag = "${service}:${env.BUILD_NUMBER}"
@@ -195,7 +204,7 @@ pipeline {
                         """
                     }
 
-                    // Pour les services non modifiés, conserve le tag actuellement utilisé par les conteneurs
+                    // Pour les microservices non modifiés, conserve le tag actuellement utilisé par les conteneurs
                     def notChanged = microservices.findAll { !servicesList.contains(it) }
                     for (service in notChanged) {
                         def containerId = powershell (
@@ -216,57 +225,131 @@ pipeline {
                         }
                     }
 
-                    // Liste des services en cours d'exécution
+                    def allMicroservices = microservices.join(' ')
+                    // Liste des microservices en cours d'exécution
                     def runningList = powershell(
-                        script: 'docker compose ps --format "{{.Service}}" --status=running 2>&1',
+                        script: "docker compose ps --format '{{.Service}}' --status=running ${allMicroservices} 2>&1",
                         returnStdout: true
                     ).trim()
-
-                    // Liste des services non-running (exited/created/dead)
-                    def notRunningList = powershell(
-                        script: 'docker compose ps --format "{{.Service}}" -a --status=exited --status=created --status=dead 2>&1',
-                        returnStdout: true
-                    ).trim()
-
                     def runningServices = runningList ? runningList.split().toList() : []
+
+                    // Liste des microservices non-running (exited/created/dead)
+                    def notRunningList = powershell(
+                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead ${allMicroservices} 2>&1",
+                        returnStdout: true
+                    ).trim()
                     def notRunningServices = notRunningList ? notRunningList.split().toList() : []
 
-                    if (runningServices.isEmpty()) {
-                        // Aucun Conteneur en cours => déploiement complet
-                        echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
-                        powershell "docker compose up -d"
-                    } else if (servicesList.sort() == microservices.sort()) {
-                        // Tous les services sont concernés => redéploiement complet
-                        echo "Déploiement complet de tous les services"
-                        powershell """
-                            docker compose down
-                            docker compose up -d
-                        """
-                    } else if (!notRunningServices.isEmpty()) {
-                        // Déployer les services modifiés + ceux arrêtés
-                        echo "Déploiement des services modifiés ainsi que les conteneurs arrêtés"
-                        def toStart = []
-                        def seen = new HashSet()
-                        for (s in servicesList) {
-                            if (s && seen.add(s)) toStart.add(s)
+                    // Liste les databases non-running (exited/created/dead)
+                    def allDatabase = databases.join(' ')
+                    def notRunningDatabases = powershell (
+                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead ${allDatabase} 2>&1",
+                        returnStdout: true
+                    )
+                    def notRunningDb = notRunningDatabases ? notRunningDatabases.split().toList() : []
+
+
+                    // Aucun conteneur de databases n'est arrêtés
+                    if (notRunningDb.isEmpty()) {
+                        if (runningServices.isEmpty()) {
+                            // Aucun Conteneur en cours => déploiement complet
+                            echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
+                            powershell "docker compose up -d ${allMicroservices}"
+
+                        } else if (servicesList.sort() == microservices.sort()) {
+                            // Tous les microservices sont concernés => redéploiement complet
+                            echo "Déploiement de tous les microservices"
+                            powershell """
+                                docker compose stop ${allMicroservices}
+                                docker compose up -d ${allMicroservices}
+                            """
+
+                        } else if (!notRunningServices.isEmpty()) {
+                            // Déployer les microservices modifiés + ceux arrêtés
+                            echo "Déploiement des microservices modifiés ainsi que les conteneurs arrêtés"
+                            def toStart = []
+                            def seen = new HashSet()
+                            for (s in servicesList) {
+                                if (s && seen.add(s)) toStart.add(s)
+                            }
+                            for (s in notRunningServices) {
+                                if (s && seen.add(s)) toStart.add(s)
+                            }
+                            echo "Services à (re)démarrer: ${toStart}"
+                            def svc = toStart.join(' ')
+                            powershell """
+                                docker compose stop ${svc}
+                                docker compose up -d ${svc}
+                            """
+
+                        } else {
+                            // Déploiement sélectif limité aux microservices modifiés
+                            echo "Déploiement sélectif des microservices modifiés : ${servicesList}"
+                            def svc = servicesList.join(' ')
+                            powershell """
+                                docker compose stop ${svc}
+                                docker compose up -d ${svc}
+                            """
                         }
-                        for (s in notRunningServices) {
-                            if (s && seen.add(s)) toStart.add(s)
-                        }
-                        echo "Services à (re)démarrer: ${toStart}"
-                        def svc = toStart.join(' ')
-                        powershell """
-                            docker compose stop ${svc} 2>&1
-                            docker compose up -d ${svc} 2>&1
-                        """
+
+                    // Un ou plusieurs conteneur(s) de databases est arrêtés
                     } else {
-                        // Déploiement sélectif limité aux services modifiés
-                        echo "Déploiement sélectif des services modifiés : ${servicesList}"
-                        def svc = servicesList.join(' ')
-                        powershell """
-                            docker compose stop ${svc} 2>&1
-                            docker compose up -d ${svc} 2>&1
-                        """
+                        def toDeploy = (microservices + notRunningDb).unique().join(' ')
+                        if (runningServices.isEmpty()) {
+                            // Aucun Conteneur de microservices en cours => déploiement complet
+                            echo """
+                                Aucun conteneur en cours d'exécution pour le stack : déploiement complet
+                                Databases à (re)démarrer: ${notRunningDb}
+                            """
+                            powershell "docker compose up -d ${toDeploy}"
+
+                        } else if (servicesList.sort() == microservices.sort()) {
+                            // Tous les services sont concernés => redéploiement complet
+                            echo """
+                                Déploiement de tous les microservices
+                                Databases à (re)démarrer: ${notRunningDb}
+                            """
+                            powershell """
+                                docker compose stop ${toDeploy}
+                                docker compose up -d ${toDeploy}
+                            """
+
+                        } else if (!notRunningServices.isEmpty()) {
+                            // Déployer les services modifiés + ceux arrêtés
+                            echo """
+                                Déploiement des microservices modifiés ainsi que les conteneurs arrêtés
+                                Databases à (re)démarrer: ${notRunningDb}
+                            """
+                            def toStart = []
+                            def seen = new HashSet()
+                            for (s in servicesList) {
+                                if (s && seen.add(s)) toStart.add(s)
+                            }
+                            for (s in notRunningServices) {
+                                if (s && seen.add(s)) toStart.add(s)
+                            }
+                            echo """
+                                Microservices à (re)démarrer: ${toStart}
+                                Databases à (re)démarrer: ${notRunningDb}
+                            """
+                            def svc = (toStart + notRunningDb)unique().join(' ')
+                            powershell """
+                                docker compose stop ${svc}
+                                docker compose up -d ${svc}
+                            """
+
+                        } else {
+                            // Déploiement sélectif limité aux services modifiés
+                            echo """
+                                Déploiement sélectif des microservices modifiés : ${servicesList}
+                                Databases à (re)démarrer: ${notRunningDb}
+                            """
+                            def svc = (servicesList + notRunningDb).join(' ')
+                            powershell """
+                                docker compose stop ${svc} 2>&1
+                                docker compose up -d ${svc} 2>&1
+                            """
+                        }
                     }
                 }
             }
