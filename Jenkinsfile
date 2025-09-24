@@ -254,7 +254,7 @@ pipeline {
                     // Liste les databases non-running (exited/created/dead)
                     def allDatabase = databases.join(' ')
                     def notRunningDatabases = powershell (
-                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead ${allDatabase} 2>&1",
+                        script: "docker compose ps --format '{{.Service}}' -a --status=exited --status=created --status=dead --status=unknown ${allDatabase} 2>&1",
                         returnStdout: true
                     )
                     def notRunningDb = notRunningDatabases ? notRunningDatabases.split().toList() : []
