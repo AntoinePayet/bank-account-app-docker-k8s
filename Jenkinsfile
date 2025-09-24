@@ -162,7 +162,7 @@ pipeline {
                         powershell '''
                             $password = $env:DOCKER_HUB_PAT
                             $username = $env:DOCKER_HUB_USER
-                            docker login -u $username $password
+                            $password | docker login -u $username --password-stdin
                             echo y | docker extension install docker/scout-extension 2>&1
                         '''
                     }
