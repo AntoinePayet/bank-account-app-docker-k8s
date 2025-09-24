@@ -36,6 +36,19 @@ pipeline {
     }
 
     stages {
+        // 0) Display lists of all kinds of services
+        stage('Affichage des listes') {
+            steps {
+                script {
+                    echo """
+                        Microservices: ${microservices}
+                        Databases: ${databases}
+                        Microservices à ne pas déployer: ${nePasDeployer}
+                    """
+                }
+            }
+        }
+
         // 1) Préparation de l'environnement d'exécution
         stage('Preparing the environment') {
             steps {
