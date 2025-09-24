@@ -154,21 +154,21 @@ pipeline {
         }
 
         // 5) Authentification Docker (requise pour Docker Scout)
-        stage('Docker Authentification') {
-            steps {
-                script {
-                    // Se connecte à Docker Hub avec le token stocké de manière sécurisée
-                    withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
-                        powershell '''
-                            $password = $env:DOCKER_HUB_PAT
-                            $username = $env:DOCKER_HUB_USER
-                            $password | docker login -u $username --password-stdin
-                            echo y | docker extension install docker/scout-extension 2>&1
-                        '''
-                    }
-                }
-            }
-        }
+//         stage('Docker Authentification') {
+//             steps {
+//                 script {
+//                     // Se connecte à Docker Hub avec le token stocké de manière sécurisée
+//                     withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
+//                         powershell '''
+//                             $password = $env:DOCKER_HUB_PAT
+//                             $username = $env:DOCKER_HUB_USER
+//                             $password | docker login -u $username --password-stdin
+//                             echo y | docker extension install docker/scout-extension 2>&1
+//                         '''
+//                     }
+//                 }
+//             }
+//         }
 
         // 6) Analyse de sécurité des images avec Docker Scout
         stage('Docker Scout') {
