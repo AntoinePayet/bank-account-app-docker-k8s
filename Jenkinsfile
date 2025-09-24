@@ -40,11 +40,9 @@ pipeline {
         stage('Affichage des listes') {
             steps {
                 script {
-                    echo """
-                        Microservices: ${microservices}
-                        Databases: ${databases}
-                        Microservices à ne pas déployer: ${nePasDeployer}
-                    """
+                    echo "Microservices: ${microservices}"
+                    echo "Databases: ${databases}"
+                    echo "Microservices à ne pas déployer: ${nePasDeployer}"
                 }
             }
         }
