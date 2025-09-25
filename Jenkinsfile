@@ -160,7 +160,7 @@ pipeline {
                     // Se connecte à Docker Hub avec le token stocké de manière sécurisée
                     powershell '''
                         $DOCKER_PAT_PSW | docker login -u $DOCKER_PAT_USR --password-stdin
-                        echo y | docker extension install docker/scout-extension 2>&1
+                        docker extension install docker/scout-extension --force 2>&1
                     '''
                 }
             }
