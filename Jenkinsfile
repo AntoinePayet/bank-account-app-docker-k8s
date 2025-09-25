@@ -158,26 +158,12 @@ pipeline {
             steps {
                 script {
                     // Se connecte à Docker Hub avec le token stocké de manière sécurisée
-                    withCredentials([string(credentialsId: 'DOCKER_PAT', variable: 'DOCKER_HUB_PAT')]) {
-                        powershell '''
-                            $ErrorActionPreference = "Stop"
-                            $username = $env:DOCKER_HUB_USER
-                            $tokenRaw = $env:DOCKER_HUB_PAT
-
-                            # Trim pour enlever CR/LF/espaces inattendus
-                            $token = $tokenRaw.Trim()
-
-                            # Sanity check: même longueur après Trim ?
-                            if ($token.Length -ne $tokenRaw.Length) {
-                                Write-Warning "Le token contenait des espaces/retours à la ligne, il a été normalisé."
-                            }
-
-                            # Envoi via stdin en binaire UTF8 sans BOM
-                            [System.Text.Encoding]::UTF8.GetBytes($token) | docker login -u $username --password-stdin
-
-                            echo y | docker extension install docker/scout-extension 2>&1
-                        '''
-                    }
+                    powershell '''
+                        $username = $env:DOCKER_HUB_USER
+                        $token = $env:DOCKER_HUB_PAT
+                        $token | docker login -u $username --password-stdin
+                        echo y | docker extension install docker/scout-extension 2>&1
+                    '''
                 }
             }
         }
