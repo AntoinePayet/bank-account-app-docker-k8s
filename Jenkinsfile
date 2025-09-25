@@ -26,7 +26,7 @@ pipeline {
     // Variables d'environnement globales accessibles dans tout le pipeline
     environment {
         // Jeton d'accès Docker Hub stocké dans Jenkins Crédentials
-        DOCKER_HUB_PAT = credentials('DOCKER_PAT')
+        DOCKER_PAT = credentials('DOCKER_PAT')
         // Nom d'utilisateur Docker Hub (non sensible)
         DOCKER_HUB_USER = 'antoinepayet'
         // Hôte Docker (Docker Desktop exposé via le daemon TCP)
@@ -159,9 +159,7 @@ pipeline {
                 script {
                     // Se connecte à Docker Hub avec le token stocké de manière sécurisée
                     powershell '''
-                        $username = $env:DOCKER_HUB_USER
-                        $token = $env:DOCKER_HUB_PAT
-                        $token | docker login -u $username --password-stdin
+                        $DOCKER_PAT_PSW | docker login -u $DOCKER_PAT_USR --password-stdin
                         echo y | docker extension install docker/scout-extension 2>&1
                     '''
                 }
