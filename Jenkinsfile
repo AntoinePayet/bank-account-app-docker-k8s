@@ -29,8 +29,6 @@ pipeline {
         DOCKER_PAT = credentials('DOCKER_PAT')
         // Nom d'utilisateur Docker Hub (non sensible)
         DOCKER_HUB_USER = 'antoinepayet'
-        // Hôte Docker (Docker Desktop exposé via le daemon TCP)
-//         DOCKER_HOST = 'tcp://localhost:2375'
         // Dossier temporaire pour Docker Scout (nettoyé régulièrement)
         DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
     }
