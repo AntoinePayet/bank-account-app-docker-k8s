@@ -1,6 +1,11 @@
 // Liste des microservices à gérer dans le pipeline
 def microservices = [
-    'angular-front-end'
+    'account-service',
+    'angular-front-end',
+    'customer-service',
+    'config-service',
+    'discovery-service',
+    'gateway-service'
 ]
 
 // Liste des bases de données
@@ -10,14 +15,7 @@ def databases = [
 ]
 
 // Liste des microservices à ne pas redéployer (qui doivent rester arrêtés)
-def nePasDeployer = [
-    'account-service',
-//     'angular-front-end',
-    'customer-service',
-    'config-service',
-    'discovery-service',
-    'gateway-service'
-]
+def nePasDeployer = []
 
 pipeline {
     agent any
@@ -59,6 +57,8 @@ pipeline {
                             Remove-Item -Path $env:DOCKER_SCOUT_TEMP_DIR -Recurse -Force -ErrorAction SilentlyContinue
                         }
                     '''
+                    // Authentification Docker
+                    powershell 'cmd /c "echo %DOCKER_PAT_PSW%| docker login -u %DOCKER_PAT_USR% --password-stdin"'
                 }
             }
         }
@@ -155,19 +155,7 @@ pipeline {
             }
         }
 
-        // 5) Authentification Docker (requise pour Docker Scout)
-        stage('Docker Authentification') {
-            steps {
-                script {
-                    // Se connecte à Docker Hub avec le token stocké de manière sécurisée
-                    powershell '''
-                        cmd /c "echo %DOCKER_PAT_PSW%| docker login -u %DOCKER_PAT_USR% --password-stdin"
-                    '''
-                }
-            }
-        }
-
-        // 6) Analyse de sécurité des images avec Docker Scout
+        // 5) Analyse de sécurité des images avec Docker Scout
         stage('Docker Scout') {
             steps {
                 script {
@@ -199,7 +187,7 @@ pipeline {
             }
         }
 
-        // 7) Déploiement avec Docker Compose (complet ou sélectif)
+        // 6) Déploiement avec Docker Compose (complet ou sélectif)
         stage('Deploy with Docker Compose') {
             steps {
                 script {
