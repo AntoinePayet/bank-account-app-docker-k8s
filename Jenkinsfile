@@ -1,11 +1,6 @@
 // Liste des microservices à gérer dans le pipeline
 def microservices = [
-    'account-service',
-    'angular-front-end',
-    'customer-service',
-    'config-service',
-    'discovery-service',
-    'gateway-service'
+    'angular-front-end'
 ]
 
 // Liste des bases de données
@@ -15,7 +10,14 @@ def databases = [
 ]
 
 // Liste des microservices à ne pas redéployer (qui doivent rester arrêtés)
-def nePasDeployer = []
+def nePasDeployer = [
+    'account-service',
+//     'angular-front-end',
+    'customer-service',
+    'config-service',
+    'discovery-service',
+    'gateway-service'
+]
 
 pipeline {
     agent any
@@ -159,7 +161,7 @@ pipeline {
                 script {
                     // Se connecte à Docker Hub avec le token stocké de manière sécurisée
                     powershell '''
-                        $DOCKER_PAT_PSW | docker login -u $DOCKER_PAT_USR --password-stdin
+                        cmd /c "echo %DOCKER_PAT_PSW%| docker login -u %DOCKER_PAT_USR% --password-stdin"
                     '''
                 }
             }
