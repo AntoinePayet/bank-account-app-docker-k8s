@@ -14,27 +14,29 @@ def databases = [
     'db_postgres_1'
 ]
 
-// Liste des microservices à ne pas redéployer (qui doivent rester arrêtés)
+// Liste des microservices à ne pas (re)déployer (qui doivent rester arrêtés)
 def nePasDeployer = []
 
 pipeline {
     agent any
     tools {
+        // Nom de l'outil Maven tel que configuré dans Jenkins (Global Tool Configuration)
         maven 'maven-3.9.10'
     }
 
     // Variables d'environnement globales accessibles dans tout le pipeline
     environment {
         // Jeton d'accès Docker Hub stocké dans Jenkins Crédentials
-        DOCKER_PAT = credentials('DOCKER_PAT')
-        // Nom d'utilisateur Docker Hub (non sensible)
-        DOCKER_HUB_USER = 'antoinepayet'
-        // Dossier temporaire pour Docker Scout (nettoyé régulièrement)
+        DOCKER_PAT2 = credentials('DOCKER_PAT2')
+        // Répertoire temporaire pour Docker Scout (Windows)
         DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
+
+        // Répertoire temporaire pour Docker Scout (Linux)
+        // DOCKER_SCOUT_TEMP_DIR = '/tmp/docker-scout'
     }
 
     stages {
-        // 0) Display lists of all kinds of services
+        // 0) Affiche les différentes listes
         stage('Affichage des listes') {
             steps {
                 script {
@@ -56,7 +58,7 @@ pipeline {
                         }
                     '''
                     // Authentification Docker
-                    powershell 'cmd /c "echo %DOCKER_PAT_PSW%| docker login -u %DOCKER_PAT_USR% --password-stdin"'
+                    powershell 'cmd /c "echo %DOCKER_PAT2_PSW%| docker login -u %DOCKER_PAT2_USR% --passwoard-stdin"'
                 }
             }
         }
@@ -71,17 +73,16 @@ pipeline {
                     def isFirstRun = (currentBuild?.previousSuccessfulBuild == null && env.BUILD_NUMBER == '1')
 
                     if (isFirstRun) {
-                        echo "Premier lancement du pipeline : déploiement complet de tous les services"
+                        echo "Premier lancement du pipeline: déploiement complet de tous les microservices"
                         changedServices = microservices
                     } else {
+                        // Détecte les dossiers modifiés sur le dernier commit
                         for (service in microservices) {
                             // Compare les fichiers modifiés entre le dernier commit et l'actuel pour chaque microservice
                             def changes = powershell(
                                 script: "git diff --name-only HEAD^..HEAD ${service}/ 2>&1",
                                 returnStdout: true
                             ).trim()
-
-                            // Si des changements sont détectés dans le dossier du microservice, on l'ajoute à la liste
                             if (changes) {
                                 changedServices.add(service)
                             }
@@ -94,7 +95,7 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             if (!hasAnyContainer){
-                                echo "Microservice '${service}' sans conteneur existant : inclusion pour déploiement initial"
+                                echo "Microservices '${service}' sans conteneur existant: inclusion pour déploiement initial"
                                 changedServices.add(service)
                             }
                         }
@@ -104,7 +105,7 @@ pipeline {
                     changedServices = changedServices.unique()
                     if (changedServices.isEmpty()) {
                         changedServices = microservices
-                        echo "Aucun changement détecté : tous les services seront déployés"
+                        echo "Aucun changement détecté: tous les microservices seront déployés"
                     }
 
                     // Partage la liste des services à traiter avec les stages suivants
@@ -121,14 +122,14 @@ pipeline {
                     def servicesList = env.CHANGES.split(',')
                     for (service in servicesList) {
                         dir(service) {
-                            // Pour le front Angular : installation des dépendances et build
+                            // Build Angular
                             if (service == 'angular-front-end') {
                                 powershell '''
                                     npm ci 2>&1
                                     npm run build 2>&1
                                 '''
+                            // Build Maven
                             } else {
-                                // Pour les microservices Java : build Maven sans exécuter les tests
                                 powershell 'mvn -B clean package -DskipTests 2>&1'
                             }
                         }
@@ -242,15 +243,13 @@ pipeline {
                     def notRunningDatabases = databases.findAll { !runningDb.contains(it) }
 
 
-                    // Aucun conteneur de databases n'est arrêtés
+                    // Aucun conteneur de database n'est arrêté
                     if (notRunningDatabases.isEmpty()) {
                         if (runningServices.isEmpty()) {
-                            // Aucun Conteneur en cours => déploiement complet
-                            echo "Aucun conteneur en cours d'exécution pour le stack : déploiement complet"
+                            echo "Aucun conteneur en cours d'exécution pour le stack: déploiement complet"
                             powershell "docker compose up -d ${allMicroservices}"
 
                         } else if (servicesList.sort() == microservices.sort()) {
-                            // Tous les microservices sont concernés => redéploiement complet
                             echo "Déploiement de tous les microservices"
                             powershell """
                                 docker compose stop ${allMicroservices}
@@ -258,7 +257,6 @@ pipeline {
                             """
 
                         } else if (!notRunningServices.isEmpty()) {
-                            // Déployer les microservices modifiés + ceux arrêtés
                             echo "Déploiement des microservices modifiés ainsi que les conteneurs arrêtés"
                             def toStart = []
                             def seen = new HashSet()
@@ -276,8 +274,7 @@ pipeline {
                             """
 
                         } else {
-                            // Déploiement sélectif limité aux microservices modifiés
-                            echo "Déploiement sélectif des microservices modifiés : ${servicesList}"
+                            echo "Déploiement sélectif des microservices modifiés: ${servicesList}"
                             def svc = servicesList.join(' ')
                             powershell """
                                 docker compose stop ${svc}
@@ -285,19 +282,17 @@ pipeline {
                             """
                         }
 
-                    // Un ou plusieurs conteneur(s) de databases est arrêtés
+                    // Un ou plusieurs conteneurs de databases sont arrêtés
                     } else {
                         def toDeploy = (microservices + notRunningDatabases).unique().join(' ')
                         if (runningServices.isEmpty()) {
-                            // Aucun Conteneur de microservices en cours => déploiement complet
                             echo """
-                                Aucun conteneur en cours d'exécution pour le stack : déploiement complet
+                                Aucun conteneur en cours d'exécution pour le stack: déploiement complet
                                 Databases à (re)démarrer: ${notRunningDatabases}
                             """
                             powershell "docker compose up -d ${toDeploy}"
 
                         } else if (servicesList.sort() == microservices.sort()) {
-                            // Tous les services sont concernés => redéploiement complet
                             echo """
                                 Déploiement de tous les microservices
                                 Databases à (re)démarrer: ${notRunningDatabases}
@@ -329,15 +324,14 @@ pipeline {
                             """
 
                         } else {
-                            // Déploiement sélectif limité aux services modifiés
                             echo """
-                                Déploiement sélectif des microservices modifiés : ${servicesList}
+                                Déploiement sélectif des microservices modifiés: ${servicesList}
                                 Databases à (re)démarrer: ${notRunningDatabases}
                             """
                             def svc = (servicesList + notRunningDatabases).join(' ')
                             powershell """
-                                docker compose stop ${svc} 2>&1
-                                docker compose up -d ${svc} 2>&1
+                                docker compose stop ${svc}
+                                docker compose up -d ${svc}
                             """
                         }
                     }
@@ -347,19 +341,19 @@ pipeline {
     }
 
     post {
-        // Gestion des échecs : messages de diagnostics orientés (sécurité, authentification, autres erreurs)
+        // Gestion des échecs: messages de diagnostics orientés (sécurité, authentification, autres erreurs)
         failure {
             script {
                 echo """/!\\ ECHEC DU PIPELINE /!\\
-                    Pipeline : ${env.JOB_NAME}
-                    Build : #${env.BUILD_NUMBER}
-                    Statut : ECHEC
+                    Pipeline: ${env.JOB_NAME}
+                    Build: #${env.BUILD_NUMBER}
+                    Statut: ECHEC
 
                     Consultez les logs du build (onglet Console Output) pour le détail.
                     Si l'échec survient lors de l'étape d'authentification Docker, vérifiez:
-                      - Le crédential 'DOCKER_PAT' dans Jenkins
+                      - Le crédential 'DOCKER_PAT2' dans Jenkins
                       - La validité du token Docker Hub
-                      - Les permissions de l'utilisateur '${env.DOCKER_HUB_USER}'
+                      - Les permissions de l'utilisateur
                       - Que le Daemon Docker est démarré et accessible
                 """
             }
