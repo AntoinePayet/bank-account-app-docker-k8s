@@ -58,7 +58,7 @@ pipeline {
                         }
                     '''
                     // Authentification Docker
-                    powershell 'cmd /c "echo %DOCKER_PAT2_PSW%| docker login -u %DOCKER_PAT2_USR% --passwoard-stdin"'
+                    powershell 'cmd /c "echo %DOCKER_PAT2_PSW%| docker login -u %DOCKER_PAT2_USR% --password-stdin"'
                 }
             }
         }
