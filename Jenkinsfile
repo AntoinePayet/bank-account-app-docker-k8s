@@ -27,7 +27,7 @@ pipeline {
     // Variables d'environnement globales accessibles dans tout le pipeline
     environment {
         // Jeton d'accès Docker Hub stocké dans Jenkins Crédentials
-        DOCKER_PAT2 = credentials('DOCKER_PAT2')
+        DOCKER_PAT = credentials('DOCKER_PAT')
         // Répertoire temporaire pour Docker Scout (Windows)
         DOCKER_SCOUT_TEMP_DIR = 'C:\\WINDOWS\\SystemTemp\\docker-scout'
 
@@ -58,7 +58,7 @@ pipeline {
                         }
                     '''
                     // Authentification Docker
-                    powershell 'cmd /c "echo %DOCKER_PAT2_PSW%| docker login -u %DOCKER_PAT2_USR% --password-stdin"'
+                    powershell 'cmd /c "echo %DOCKER_PAT_PSW%| docker login -u %DOCKER_PAT_USR% --password-stdin"'
                 }
             }
         }
@@ -351,7 +351,7 @@ pipeline {
 
                     Consultez les logs du build (onglet Console Output) pour le détail.
                     Si l'échec survient lors de l'étape d'authentification Docker, vérifiez:
-                      - Le crédential 'DOCKER_PAT2' dans Jenkins
+                      - Le crédential 'DOCKER_PAT' dans Jenkins
                       - La validité du token Docker Hub
                       - Les permissions de l'utilisateur
                       - Que le Daemon Docker est démarré et accessible
