@@ -83,7 +83,7 @@ services:
       - '80'
 
   db_postgres:
-    image: postgres:17.6
+    image: postgres:18
     container_name: db_postgres
     environment:
       POSTGRES_DB : account
@@ -99,7 +99,7 @@ services:
       start_period: 30s
 
   db_postgres_1:
-    image: postgres:17.6
+    image: postgres:18
     container_name: db_postgres_1
     environment:
       POSTGRES_DB : customer
